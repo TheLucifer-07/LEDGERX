@@ -17,19 +17,23 @@
 | Scope of refunds | Refund posted capture operations (wallet-to-merchant) only | Refund any deposit/transfer | Gives refunds a precise original allocation and cap. | “A refund reverses a payment allocation with a clear counterparty.” |
 | Settlement amount policy | Gross capture/refund amounts; no fees, taxes, or FX in V1 | Net settlement with fee accounting | Prevents hidden fee assumptions and like-for-unlike comparison. | “The settlement basis is explicit and consistent on both sides.” |
 | Settlement cardinality | One internal capture/refund to at most one external statement item and vice versa; unique constraints enforce both sides | Many-to-one batch totals | Avoids ambiguous split/aggregation matching in V1. Test duplicate links/imports. | “One-to-one matching makes each exception attributable; aggregation can be a later feature.” |
-| Reversal after refund | Prohibit full reversal when any posted refund exists | Net reversal amount after prior refunds | Avoids double-compensation ambiguity. Test rejected reversal and unchanged balances. | “A capture's compensation path is exclusive: refund or full reversal.” |
+| Reversal after refund | Prohibit full capture reversal while any refund transaction remains posted | Net reversal amount after prior refunds | Avoids double-compensation ambiguity while allowing reversal of a refund to restore capacity. Test both active and historical refunds. | “The capture is reversible only when its active refund total is zero.” |
 | Migrations | Numbered SQL migrations with a stored SHA-256 checksum, applied atomically with their history row | Ad hoc rerunnable scripts | Detects modified history and prevents partial migration application. Test clean setup, repeat setup, changed checksum rejection. | “The migration ledger records both order and exact applied file content.” |
 | Runtime security | Separate owner/migration and runtime roles; runtime writes only through approved fixed-search-path SECURITY DEFINER functions | Grant table DML to runtime | Limits accidental or unauthorized financial mutation. Test positive and negative grants. | “Privilege boundaries are enforced in PostgreSQL, not only documented.” |
+| Refund reversal semantics | The linked refund transaction's `posted` status determines active amount; reversed refund rows remain in history and are excluded from caps and active analytics | Delete refund history; store a separate mutable active flag | Releases refundable capacity after compensation without erasing evidence. Tests cover repeat refund, capture reversal, analytics, and audit. | “The immutable refund row records history; transaction state determines whether it is active.” |
+| Reversal journal audit | Aggregate original and reversing amounts by account and side, compare opposite sides, and check header/state agreement | Compare only totals or pair individual rows | Detects a balanced reversal posted to an incorrect account and handles repeated account lines. | “Equal total debits and credits do not prove that the original accounts were compensated.” |
+| Projection completeness | Account insert trigger creates the row; auditor detects missing rows; owner procedure upserts and verifies all balances | Update existing rows only; create rows lazily at posting time | Ensures every account has an authorization projection and lets recovery reconstruct missing rows without touching history. | “A rebuildable projection needs completeness checks as well as value checks.” |
 
 ## Settled V1 decisions
 
 1. Capture is a wallet-to-merchant operation; refunds are only for posted captures.
-2. Any posted refund prohibits full reversal of that capture.
+2. Only active posted refunds prohibit full reversal of the capture; reversed refund history remains queryable but releases refundable capacity.
 3. Storage is `NUMERIC(20,4)`; currency precision is checked before typmod assignment.
 4. Settlement uses gross capture/refund amounts, one-to-one matching, and no fees/taxes/FX.
 5. Rejected requests raise and roll back; durable failed-request analytics are out of scope.
 6. System accounts share `accounts` with nullable customer ownership and an explicit account kind/normal side.
 7. Migrations are versioned and checksum-verified; CI applies from a clean PostgreSQL 17 service.
+8. Reversing a reversal is rejected in V1; each original transaction has at most one compensating reversal.
 
 ## Required implementation evidence
 

@@ -8,7 +8,7 @@ LedgerX is a PostgreSQL 17 learning project that demonstrates safe financial pos
 
 1. Maintain fictional customers and currency-denominated accounts with lifecycle status.
 2. Represent every posted business operation as a journal with at least two positive ledger lines. Debits equal credits per journal and currency.
-3. Process deposits, withdrawals, wallet transfers, merchant captures, full reversals where permitted, and bounded full or partial refunds atomically. Refunds apply only to posted captures. A capture with a posted refund cannot be fully reversed.
+3. Process deposits, withdrawals, wallet transfers, merchant captures, full reversals where permitted, and bounded full or partial refunds atomically. Refunds apply only to posted captures. Only refund transactions still in `posted` status consume refundable capacity or block capture reversal; reversed refund history remains queryable.
 4. Reject inactive or incompatible accounts, self-transfers, invalid amounts, insufficient funds, over-refunds, and duplicate reversals.
 5. Give each client request a unique idempotency key and payload fingerprint. A retry with the same key and same payload returns the original transaction; a different payload is rejected.
 6. Serialize spending on affected accounts and acquire account locks in a stable order.
@@ -22,6 +22,8 @@ LedgerX is a PostgreSQL 17 learning project that demonstrates safe financial pos
 - Use `NUMERIC(20,4)` as the storage ceiling and explicit currency codes backed by a currency reference table. Validate the unconstrained input amount against the currency's permitted scale before assigning to a typmod column, so excess precision cannot be rounded into acceptance. A journal uses one currency; FX is excluded.
 - Enforce row-local rules with `NOT NULL`, foreign keys, `UNIQUE`, and `CHECK`; enforce journal-wide balance at the database boundary with a deferred constraint trigger.
 - Keep all writes for a financial operation in one PostgreSQL transaction. The SQL function performs business steps; the caller controls `BEGIN`/`COMMIT` when composing operations. An exception aborts the unit of work.
+- Create an account balance projection with each account, detect missing projection rows independently, and rebuild them atomically from posted journal entries with a final audit.
+- Independently validate reversal headers and compare the original and compensating journal amounts by account and opposite debit/credit side.
 - Target `READ COMMITTED` with explicit row locks for this design. Document that deployments needing multi-row predicate guarantees may require `SERIALIZABLE` and retry handling.
 - Use least-privilege roles: application/test role calls approved functions; it does not directly mutate posted lines or internal projection state.
 - Make setup and test scripts rerunnable where practical, deterministic, and explicit about errors. Never claim an unrun test or benchmark passed.

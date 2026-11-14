@@ -28,7 +28,7 @@ Read migrations `0005` and `0004`'s idempotency sections, then `tests/concurrenc
 
 ## 7. Study refunds, reversals, and recovery
 
-Read `tests/financial_operations.sql`, `0006_integrity_auditor.sql`, and its learning note. Run `scripts/test-integrity.sh`. Explain why refunds lock the original capture and why projection recovery is restricted to the owner role and derives from posted journal lines.
+Read `tests/financial_operations.sql`, migrations `0006` and `0010`, and their learning notes. Run `scripts/test-financial.sh` and `scripts/test-integrity.sh`. Explain why only posted refund transactions consume a capture limit, how the auditor compares reversal lines by account and side, and why projection recovery is restricted to the owner role.
 
 ## 8. Trace settlement evidence
 
@@ -36,8 +36,10 @@ Read migrations `0007` and `0008`, `tests/settlement_reconciliation.sql`, and `d
 
 ## 9. Read reports and query plans
 
-Study migration `0009_reporting_views.sql`, its note, and `tests/reporting_views.sql`. Then run `scripts/benchmark.sh 100000` and compare the observed plans. Explain which synthetic workload is measured and why that result does not generalize to every query or machine.
+Study migrations `0009_reporting_views.sql` and `0010_refund_reversal_and_projection_integrity.sql`, their notes, and `tests/reporting_views.sql`. Compare active refund totals to historical refund activity. Then run `scripts/benchmark.sh 100000` and compare the observed plans. Explain which synthetic workload is measured and why that result does not generalize to every query or machine.
 
 ## 10. Practice explaining the system
 
 Use `docs/interview-preparation.md` to explain one invariance at a time: journal balance, atomicity, idempotency, overspending prevention, refund caps, and settlement differences. State the tests you actually ran and their limits; do not describe this project as production-ready.
+
+Run `scripts/demo.sh` on a disposable database and explain its journals, settlement matches, refund history, and balances. Read `docs/deployment.md` for hosted role and connection assumptions.

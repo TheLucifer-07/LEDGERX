@@ -1,0 +1,12 @@
+# Migration 0010: Refund Reversal and Projection Integrity
+
+- **Purpose:** define active refunds by the refund transaction's posted status, preserve/query reversed refund history, create a balance projection for every new account, repair missing projections, and independently verify reversal journal composition.
+- **Dependencies:** migrations 0001–0009.
+- **Concepts:** append-only compensating transactions, aggregate-state filtering, account/side grouping, `FULL JOIN` discrepancy detection, upsert-based repair, and post-repair verification.
+- **Important statements:** `post_financial_operation` now filters refund totals and capture-reversal restrictions to refund transactions with status `posted`. The auditor accepts a historical refund status of `reversed`, checks its posted reversal, compares each original account/side total with the opposite side in the reversal, and reports absent balance projections. The rebuild inserts missing rows and updates existing rows, then runs the auditor before returning. New accounts get an initial zero projection through an `AFTER INSERT` trigger.
+- **Why this approach:** refund rows are immutable evidence; their linked transaction state determines whether the amount is active. Reversal comparison groups by account and debit/credit side, so it remains correct when an account has repeated lines in a journal. Projection repair must cover missing rows as well as stale values.
+- **Alternatives:** delete reversed refunds; store a mutable active flag; compare ledger lines one-by-one. These either erase history, duplicate authoritative state, or mis-handle repeated account lines.
+- **Failure cases:** rebuilding is rejected if non-projection integrity findings exist or any finding remains after repair. Reversing a reversal is explicitly rejected to keep compensation state unambiguous. All rebuild writes and its audit record are atomic.
+- **Execute:** `scripts/migrate.sh` applies the migration after 0009; do not modify already-applied migrations.
+- **Verify:** run `scripts/test-financial.sh`, `scripts/test-integrity.sh`, and `scripts/test-reports.sh`; the integrity suite creates a balanced but incorrectly composed reversal inside a rolled-back test subtransaction.
+- **Interview questions:** Why is refund activity derived from transaction state? Why aggregate by account and side before comparing a reversal? Why must a rebuild perform a final audit?

@@ -28,9 +28,11 @@ To stop the database and keep its data, run `docker compose stop`. To remove the
 
 Read [LEARNING_GUIDE.md](LEARNING_GUIDE.md) first, then follow [docs/learning-path.md](docs/learning-path.md). Architecture details are in [docs/architecture.md](docs/architecture.md).
 
+For the transaction walkthrough, run `scripts/demo.sh` against a disposable local database. It demonstrates funding, transfers, captures, refunds and a refund reversal, settlement, reports, and integrity auditing. It rolls back all demonstration writes. See [examples/end_to_end_demo.sql](examples/end_to_end_demo.sql) and [docs/deployment.md](docs/deployment.md).
+
 ## Financial model in brief
 
-Wallets are credit-normal liabilities; funding and payout clearing accounts are debit-normal. Every posted journal has at least two positive lines and balances within a single currency. The append-only ledger is authoritative. `account_balances` is a protected, rebuildable projection used for balance checks. Rejected operations raise errors and roll back; no failed financial row is retained. Refunds apply only to captures, and a capture with a posted refund cannot be fully reversed.
+Wallets are credit-normal liabilities; funding and payout clearing accounts are debit-normal. Every posted journal has at least two positive lines and balances within a single currency. The append-only ledger is authoritative. `account_balances` is a protected, rebuildable projection used for balance checks. Rejected operations raise errors and roll back; no failed financial row is retained. Posted refunds consume capture capacity; reversed refund transactions remain historical but release that capacity.
 
 ## Verify or inspect
 
@@ -41,4 +43,4 @@ scripts/benchmark.sh 100000
 
 The benchmark writes a text report under `benchmarks/results/` with the observed PostgreSQL version, generated row count, timings, buffer counts, and plans before and after an index is added to temporary synthetic data. It does not alter financial history. Benchmark results are hardware-specific; see [docs/performance-analysis.md](docs/performance-analysis.md).
 
-The migration runner rejects edits to migrations that have already been applied. Add a new numbered migration for schema changes; do not edit an applied migration.
+The migration runner rejects edits to migrations that have already been applied. Add a new numbered migration for schema changes; do not edit an applied migration. Migration and seed scripts can target hosted PostgreSQL through `LEDGERX_DATABASE_URL`; follow the staged role setup in [docs/deployment.md](docs/deployment.md).

@@ -20,9 +20,11 @@ All customer wallet accounts are liability accounts with credit-normal balances.
 | Refund of capture | Debit merchant wallet liability | Credit customer wallet liability |
 | Full reversal | Exact opposite of every original line | Compensating side |
 
-The word “deposit” is modeled as a movement from a configured system funding account, not newly created value. A transfer is not represented as a balance-only update: its two ledger lines are the accounting record. Capture is an explicit transaction type representing a wallet-to-merchant payment. Refunds apply only to posted captures; cumulative posted refunds cannot exceed the captured amount. A capture with any posted refund cannot be fully reversed. Refunds and reversals are new compensating transactions.
+The word “deposit” is modeled as a movement from a configured system funding account, not newly created value. A transfer is not represented as a balance-only update: its two ledger lines are the accounting record. Capture is an explicit transaction type representing a wallet-to-merchant payment. Refunds apply only to posted captures; only refund transactions whose status is `posted` consume the capture's refundable amount. Reversing a refund retains its refund row and transaction history while releasing the amount for a later refund. A capture with an active posted refund cannot be fully reversed. Reversals are new compensating transactions; reversing a reversal is rejected in V1 to keep lifecycle state unambiguous.
 
 ## Posting and integrity boundary
+
+An account-insert trigger creates a zero-valued projection. The auditor compares every projection with its ledger-derived amount and reports missing rows separately. The owner-only rebuild upserts all derived balances and performs a complete auditor verification before returning.
 
 1. A focused SQL function validates request fields and account statuses, acquires affected account rows in ascending `account_id` order, and checks the balance projection for a withdrawal/debit.
 2. The function creates/claims its idempotency record, creates a transaction header, inserts all journal lines, and marks the transaction posted in the same database transaction.
@@ -65,9 +67,10 @@ Docker Compose runs a pinned PostgreSQL 17 image with a named volume and health 
 7. `database/migrations/0007_settlement_reconciliation.sql` — batch import and versioned matching.
 8. `database/migrations/0008_settlement_windows.sql` — explicit eligible event windows.
 9. `database/migrations/0009_reporting_views.sql` — useful financial and reconciliation views.
-10. `seeds/reference_data.sql` — currencies, fictional customers, system accounts, wallets, and initial projection rows.
-11. `tests/` scripts — run after migrations and reference data; concurrency scripts require independent sessions.
-12. `benchmarks/` scripts — deterministic temporary scale generation then measured query runs.
+10. `database/migrations/0010_refund_reversal_and_projection_integrity.sql` — active refunds, projection completeness/recovery, and reversal auditing.
+11. `seeds/reference_data.sql` — currencies, fictional customers, system accounts, wallets, and initial projection rows.
+12. `tests/` scripts — run after migrations and reference data; concurrency scripts require independent sessions.
+13. `benchmarks/` scripts — deterministic temporary scale generation then measured query runs.
 
 The Bash migration runner applies each SQL migration and checksum record in the same transaction and refuses an already-applied version whose file checksum changed. Every significant SQL file has a neighboring learning note with purpose, dependencies, concepts, alternatives, failure cases, execution, verification, and interview questions.
 

@@ -4,15 +4,17 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MIGRATIONS_DIR="${LEDGERX_MIGRATIONS_DIR:-$ROOT_DIR/database/migrations}"
 
-if [[ ! -f "$ROOT_DIR/.env" ]]; then
+if [[ -z "${LEDGERX_DATABASE_URL:-}" && ! -f "$ROOT_DIR/.env" ]]; then
   printf 'Missing .env. Run scripts/setup.sh after copying .env.example.\n' >&2
   exit 1
 fi
 
-set -a
-# shellcheck disable=SC1091
-. "$ROOT_DIR/.env"
-set +a
+if [[ -f "$ROOT_DIR/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  . "$ROOT_DIR/.env"
+  set +a
+fi
 
 hash_file() {
   if command -v sha256sum >/dev/null 2>&1; then
@@ -23,8 +25,12 @@ hash_file() {
 }
 
 psql_in_db() {
-  docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-    psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" "$@"
+  if [[ -n "${LEDGERX_DATABASE_URL:-}" ]]; then
+    psql -X -v ON_ERROR_STOP=1 "$LEDGERX_DATABASE_URL" "$@"
+  else
+    docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
+      psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" "$@"
+  fi
 }
 
 psql_in_db -c "CREATE TABLE IF NOT EXISTS public.ledgerx_schema_migrations (
@@ -37,6 +43,12 @@ shopt -s nullglob
 migration_files=("$MIGRATIONS_DIR"/[0-9][0-9][0-9][0-9]_*.sql)
 if (( ${#migration_files[@]} == 0 )); then
   printf 'No migrations found in %s.\n' "$MIGRATIONS_DIR" >&2
+  exit 1
+fi
+
+if [[ -n "${LEDGERX_MIGRATE_THROUGH:-}" &&
+      ! -f "$MIGRATIONS_DIR/${LEDGERX_MIGRATE_THROUGH}.sql" ]]; then
+  printf 'Requested migration boundary not found: %s\n' "$LEDGERX_MIGRATE_THROUGH" >&2
   exit 1
 fi
 
@@ -90,4 +102,7 @@ SQL
   rm -f "$driver_file"
   trap - EXIT
   printf 'Applied or verified migration %s\n' "$version"
+  if [[ "${LEDGERX_MIGRATE_THROUGH:-}" == "$version" ]]; then
+    break
+  fi
 done

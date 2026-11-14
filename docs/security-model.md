@@ -12,7 +12,7 @@ Sensitive routines use `SECURITY DEFINER`, a fixed `search_path` of `pg_catalog,
 
 ## Ledger and recovery
 
-Posted journal rows are append-only. Deferred constraint triggers validate final journal state, while controlled functions are the only runtime write path. The independent auditor reports inconsistencies; the projection rebuild procedure is owner-only and recomputes from posted journal lines. There is no production-facing test bypass: the test-only corruption executes as owner inside a transaction that is rolled back.
+Posted journal rows are append-only. Deferred constraint triggers validate final journal state, while controlled functions are the only runtime write path. The independent auditor compares reversal journals account by account and side by side, reports missing projections, and identifies invalid active-refund totals. The projection rebuild procedure is owner-only, upserts every account projection from posted journal lines, and performs a final audit before returning. There is no production-facing test bypass: test-only corruption runs as owner inside rolled-back subtransactions.
 
 ## Limits
 

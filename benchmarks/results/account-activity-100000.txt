@@ -1,5 +1,5 @@
 LedgerX isolated synthetic account-activity benchmark
-Run time UTC: 2026-11-14 06:56:42
+Run time UTC: 2026-11-14 08:21:30
 Host: Darwin Animireddys-MacBook-Pro.local 27.2.0 Darwin Kernel Version 27.2.0: Wed Oct 14 23:47:07 PDT 2026; root:xnu-13432.41.4~25/RELEASE_ARM64_T8132 arm64
                                                           version                                                           
 ----------------------------------------------------------------------------------------------------------------------------
@@ -8,69 +8,69 @@ Host: Darwin Animireddys-MacBook-Pro.local 27.2.0 Darwin Kernel Version 27.2.0: 
 
 Timing is on.
 SELECT 100000
-Time: 26.883 ms
+Time: 24.814 ms
 SELECT 200000
-Time: 38.629 ms
+Time: 32.502 ms
 ANALYZE
-Time: 25.076 ms
+Time: 13.246 ms
 ANALYZE
-Time: 18.112 ms
+Time: 16.078 ms
 BEFORE INDEX: one account activity and running total
                                                                     QUERY PLAN                                                                    
 --------------------------------------------------------------------------------------------------------------------------------------------------
- WindowAgg  (cost=6446.89..6468.49 rows=1081 width=61) (actual time=14.220..14.457 rows=1000 loops=1)
+ WindowAgg  (cost=6434.56..6453.08 rows=927 width=61) (actual time=13.434..13.655 rows=1000 loops=1)
    Buffers: local read=2368 written=1023
-   ->  Sort  (cost=6446.87..6449.57 rows=1081 width=29) (actual time=14.204..14.231 rows=1000 loops=1)
+   ->  Sort  (cost=6434.54..6436.86 rows=927 width=29) (actual time=13.428..13.450 rows=1000 loops=1)
          Sort Key: t.created_at, t.transaction_id
          Sort Method: quicksort  Memory: 71kB
          Buffers: local read=2368 written=1023
-         ->  Hash Join  (cost=3985.59..6392.40 rows=1081 width=29) (actual time=6.358..14.146 rows=1000 loops=1)
+         ->  Hash Join  (cost=3983.59..6388.86 rows=927 width=29) (actual time=5.978..13.368 rows=1000 loops=1)
                Hash Cond: (t.transaction_id = e.transaction_id)
                Buffers: local read=2368 written=1023
-               ->  Seq Scan on benchmark_transactions t  (cost=0.00..1896.00 rows=100000 width=24) (actual time=0.014..4.023 rows=100000 loops=1)
+               ->  Seq Scan on benchmark_transactions t  (cost=0.00..1896.00 rows=100000 width=24) (actual time=0.013..3.662 rows=100000 loops=1)
                      Buffers: local read=896 written=3
-               ->  Hash  (cost=3972.00..3972.00 rows=1087 width=13) (actual time=6.324..6.324 rows=1000 loops=1)
-                     Buckets: 2048  Batches: 1  Memory Usage: 63kB
+               ->  Hash  (cost=3972.00..3972.00 rows=927 width=13) (actual time=5.950..5.950 rows=1000 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 55kB
                      Buffers: local read=1472 written=1020
-                     ->  Seq Scan on benchmark_entries e  (cost=0.00..3972.00 rows=1087 width=13) (actual time=0.012..6.260 rows=1000 loops=1)
+                     ->  Seq Scan on benchmark_entries e  (cost=0.00..3972.00 rows=927 width=13) (actual time=0.011..5.876 rows=1000 loops=1)
                            Filter: (account_id = 1)
                            Rows Removed by Filter: 199000
                            Buffers: local read=1472 written=1020
  Planning:
    Buffers: shared hit=51
- Planning Time: 0.118 ms
- Execution Time: 14.519 ms
+ Planning Time: 0.104 ms
+ Execution Time: 13.693 ms
 (22 rows)
 
-Time: 14.992 ms
+Time: 14.091 ms
 CREATE INDEX
-Time: 31.249 ms
+Time: 28.474 ms
 ANALYZE
-Time: 14.684 ms
+Time: 12.593 ms
 AFTER INDEX: same account activity and running total
                                                                                            QUERY PLAN                                                                                           
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- WindowAgg  (cost=3757.22..3776.00 rows=940 width=61) (actual time=9.267..9.504 rows=1000 loops=1)
+ WindowAgg  (cost=3787.31..3806.63 rows=967 width=61) (actual time=8.177..8.403 rows=1000 loops=1)
    Buffers: shared hit=3, local read=1638
-   ->  Sort  (cost=3757.20..3759.55 rows=940 width=29) (actual time=9.257..9.283 rows=1000 loops=1)
+   ->  Sort  (cost=3787.29..3789.70 rows=967 width=29) (actual time=8.172..8.194 rows=1000 loops=1)
          Sort Key: t.created_at, t.transaction_id
          Sort Method: quicksort  Memory: 71kB
          Buffers: shared hit=3, local read=1638
-         ->  Hash Join  (cost=1305.38..3710.78 rows=940 width=29) (actual time=1.118..9.196 rows=1000 loops=1)
+         ->  Hash Join  (cost=1333.67..3739.34 rows=967 width=29) (actual time=0.853..8.115 rows=1000 loops=1)
                Hash Cond: (t.transaction_id = e.transaction_id)
                Buffers: shared hit=3, local read=1638
-               ->  Seq Scan on benchmark_transactions t  (cost=0.00..1896.00 rows=100000 width=24) (actual time=0.007..4.024 rows=100000 loops=1)
+               ->  Seq Scan on benchmark_transactions t  (cost=0.00..1896.00 rows=100000 width=24) (actual time=0.004..3.609 rows=100000 loops=1)
                      Buffers: local read=896
-               ->  Hash  (cost=1293.63..1293.63 rows=940 width=13) (actual time=1.095..1.095 rows=1000 loops=1)
+               ->  Hash  (cost=1321.58..1321.58 rows=967 width=13) (actual time=0.837..0.837 rows=1000 loops=1)
                      Buckets: 1024  Batches: 1  Memory Usage: 55kB
                      Buffers: shared hit=3, local read=742
-                     ->  Index Scan using benchmark_entries_account_transaction_idx on benchmark_entries e  (cost=0.42..1293.63 rows=940 width=13) (actual time=0.043..1.040 rows=1000 loops=1)
+                     ->  Index Scan using benchmark_entries_account_transaction_idx on benchmark_entries e  (cost=0.42..1321.58 rows=967 width=13) (actual time=0.015..0.786 rows=1000 loops=1)
                            Index Cond: (account_id = 1)
                            Buffers: shared hit=3, local read=742
  Planning:
-   Buffers: shared hit=17, local read=1
- Planning Time: 0.105 ms
- Execution Time: 9.551 ms
+   Buffers: shared hit=15, local read=1
+ Planning Time: 0.073 ms
+ Execution Time: 8.433 ms
 (21 rows)
 
-Time: 9.920 ms
+Time: 8.637 ms

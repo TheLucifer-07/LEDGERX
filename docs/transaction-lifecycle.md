@@ -12,7 +12,7 @@ stateDiagram-v2
     reversed --> [*]
 ```
 
-Rejected requests raise and roll back; V1 does not create failed transaction rows or durable failed-request analytics. `reversed` denotes the original transaction's lifecycle view; the reversal itself is a distinct posted transaction linked through `reversal_of_transaction_id`. A capture with a posted refund cannot transition to reversed.
+Rejected requests raise and roll back; V1 does not create failed transaction rows or durable failed-request analytics. `reversed` denotes the original transaction's lifecycle view; the reversal itself is a distinct posted transaction linked through `reversal_of_transaction_id`. A capture with an active posted refund cannot transition to reversed.
 
 ## Posting sequence
 
@@ -56,4 +56,4 @@ The caller owns `BEGIN`/`COMMIT`; PL/pgSQL functions do not commit. A same-key c
 
 ## Reversal and refund sequence
 
-Full reversal creates a new transaction with opposite-side lines for every original line, links it to the original, and is unique per original. Partial/full refund creates a separate compensating transaction for a capture, locks the original before summing previous posted refunds, and rejects any amount that would take the cumulative total above the capture. A capture with any posted refund cannot be reversed. Refunds are not silently folded into edits of the original journal.
+Full reversal creates a new transaction with opposite-side lines for every original line, links it to the original, and is unique per original. Partial/full refund creates a separate compensating transaction for a capture, locks the original before summing refund rows whose linked refund transactions remain `posted`, and rejects any amount that would take the active cumulative total above the capture. Reversing a refund creates another compensating journal and changes the refund transaction to `reversed`; its `refunds` row remains available in `v_refund_history`. The reversed amount is released for a later refund and no longer blocks capture reversal. Reversing a reversal is rejected in V1. Refunds are not silently folded into edits of the original journal.

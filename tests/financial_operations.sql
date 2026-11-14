@@ -53,6 +53,41 @@ SELECT ledger.refund_capture('tests', 'refund-002', :capture_refunded_txid, 17.7
   AS txid \gset refund_remainder_
 
 SELECT ledger.capture(
+  'tests', 'capture-refund-reversal',
+  (SELECT account_id FROM ledger.accounts WHERE account_code = 'WALLET-FINANCIAL-USD'),
+  (SELECT account_id FROM ledger.accounts WHERE account_code = 'MERCHANT-FINANCIAL-USD'),
+  40.00, 'USD', 'test-refund-reversal'
+) AS txid \gset capture_refund_reversal_
+SELECT ledger.refund_capture(
+  'tests', 'refund-reversible-001', :capture_refund_reversal_txid, 10.00
+) AS txid \gset refund_reversible_
+SELECT ledger.reverse_transaction(
+  'tests', 'reverse-refund-001', :refund_reversible_txid
+) AS txid \gset reversal_refund_
+SELECT ledger.refund_capture(
+  'tests', 'refund-after-reversal-001', :capture_refund_reversal_txid, 25.00
+) AS txid \gset refund_after_reversal_
+SELECT ledger.refund_capture(
+  'tests', 'refund-final-001', :capture_refund_reversal_txid, 15.00
+) AS txid \gset refund_final_
+
+SELECT ledger.capture(
+  'tests', 'capture-reverse-after-refund-reversal',
+  (SELECT account_id FROM ledger.accounts WHERE account_code = 'WALLET-FINANCIAL-USD'),
+  (SELECT account_id FROM ledger.accounts WHERE account_code = 'MERCHANT-FINANCIAL-USD'),
+  8.00, 'USD', 'test-reverse-after-refund-reversal'
+) AS txid \gset capture_reverse_after_refund_
+SELECT ledger.refund_capture(
+  'tests', 'refund-before-capture-reversal', :capture_reverse_after_refund_txid, 3.00
+) AS txid \gset refund_before_capture_reversal_
+SELECT ledger.reverse_transaction(
+  'tests', 'reverse-refund-before-capture', :refund_before_capture_reversal_txid
+) AS txid \gset reversal_refund_before_capture_
+SELECT ledger.reverse_transaction(
+  'tests', 'reverse-capture-after-refund-reversal', :capture_reverse_after_refund_txid
+) AS txid \gset reversal_capture_after_refund_
+
+SELECT ledger.capture(
   'tests', 'capture-002',
   (SELECT account_id FROM ledger.accounts WHERE account_code = 'WALLET-FINANCIAL-USD'),
   (SELECT account_id FROM ledger.accounts WHERE account_code = 'MERCHANT-FINANCIAL-USD'),
@@ -70,6 +105,14 @@ DECLARE
   v_refunded_capture_id bigint;
   v_transfer_id bigint;
   v_reversed_capture_id bigint;
+  v_refund_to_reverse_id bigint;
+  v_refund_reversal_id bigint;
+  v_refund_reversal_capture_id bigint;
+  v_capture_after_refund_id bigint;
+  v_active_refund_total numeric(20,4);
+  v_remaining_refundable numeric(20,4);
+  v_historical_refund_count bigint;
+  v_reversed_refund_count bigint;
   v_balance numeric(20,4);
   v_count bigint;
 BEGIN
@@ -87,6 +130,16 @@ BEGIN
    WHERE scope = 'tests' AND idempotency_key = 'transfer-001';
   SELECT transaction_id INTO v_reversed_capture_id FROM ledger.idempotency_keys
    WHERE scope = 'tests' AND idempotency_key = 'capture-002';
+  SELECT transaction_id INTO v_refund_to_reverse_id FROM ledger.idempotency_keys
+   WHERE scope = 'tests' AND idempotency_key = 'refund-reversible-001';
+  SELECT transaction_id INTO v_refund_reversal_id FROM ledger.idempotency_keys
+   WHERE scope = 'tests' AND idempotency_key = 'reverse-refund-001';
+  SELECT transaction_id INTO v_refund_reversal_capture_id
+    FROM ledger.idempotency_keys
+   WHERE scope = 'tests' AND idempotency_key = 'capture-refund-reversal';
+  SELECT transaction_id INTO v_capture_after_refund_id
+    FROM ledger.idempotency_keys
+   WHERE scope = 'tests' AND idempotency_key = 'capture-reverse-after-refund-reversal';
 
   BEGIN
     PERFORM ledger.deposit(
@@ -178,10 +231,58 @@ BEGIN
     NULL;
   END;
 
+  BEGIN
+    PERFORM ledger.reverse_transaction('tests', 'reverse-refund-twice',
+                                       v_refund_to_reverse_id);
+    RAISE EXCEPTION 'duplicate refund reversal was accepted';
+  EXCEPTION WHEN unique_violation THEN
+    NULL;
+  END;
+
+  BEGIN
+    PERFORM ledger.reverse_transaction('tests', 'reverse-refund-reversal',
+                                       v_refund_reversal_id);
+    RAISE EXCEPTION 'reversing a reversal was accepted';
+  EXCEPTION WHEN check_violation THEN
+    NULL;
+  END;
+
+  SELECT COALESCE(sum(r.amount), 0) INTO v_active_refund_total
+    FROM ledger.refunds AS r
+    JOIN ledger.transactions AS refund_tx
+      ON refund_tx.transaction_id = r.refund_transaction_id
+   WHERE r.original_transaction_id = v_refund_reversal_capture_id
+     AND refund_tx.status = 'posted';
+  IF v_active_refund_total <> 40.00 THEN
+    RAISE EXCEPTION 'active refund amount after retry/full refund expected 40, got %',
+      v_active_refund_total;
+  END IF;
+
+  IF (SELECT status FROM ledger.transactions
+       WHERE transaction_id = v_refund_to_reverse_id) <> 'reversed' THEN
+    RAISE EXCEPTION 'partial refund reversal did not retain reversed transaction history';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM ledger.refunds
+     WHERE refund_transaction_id = v_refund_to_reverse_id
+  ) THEN
+    RAISE EXCEPTION 'reversed refund history row was removed';
+  END IF;
+  SELECT remaining_refundable_amount, historical_refund_count,
+         reversed_refund_count
+    INTO v_remaining_refundable, v_historical_refund_count, v_reversed_refund_count
+    FROM ledger.v_refund_analysis
+   WHERE capture_transaction_id = v_refund_reversal_capture_id;
+  IF v_remaining_refundable <> 0 OR v_historical_refund_count <> 3
+     OR v_reversed_refund_count <> 1 THEN
+    RAISE EXCEPTION 'full-refund history view mismatch: remaining %, history %, reversed %',
+      v_remaining_refundable, v_historical_refund_count, v_reversed_refund_count;
+  END IF;
+
   SELECT b.posted_balance INTO v_balance FROM ledger.account_balances AS b
    WHERE b.account_id = v_wallet_id;
   IF v_balance <> 80.00 THEN
-    RAISE EXCEPTION 'wallet balance expected 80.00, got %', v_balance;
+    RAISE EXCEPTION 'wallet balance expected 80.00 after compensations, got %', v_balance;
   END IF;
   SELECT b.posted_balance INTO v_balance FROM ledger.account_balances AS b
    WHERE b.account_id = v_other_wallet_id;
@@ -206,6 +307,17 @@ BEGIN
    );
   IF v_count <> 1 THEN
     RAISE EXCEPTION 'full reversal did not mark its original capture reversed';
+  END IF;
+
+  SELECT count(*) INTO v_count FROM ledger.transactions
+   WHERE transaction_id = v_capture_after_refund_id AND status = 'reversed';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'capture with only historical reversed refund was not reversible';
+  END IF;
+
+  SELECT count(*) INTO v_count FROM ledger.audit_integrity();
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'integrity auditor found % issues after refund/reversal workflow', v_count;
   END IF;
 
   BEGIN

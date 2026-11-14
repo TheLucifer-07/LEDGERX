@@ -13,10 +13,12 @@ Environment: Apple Silicon MacBook Pro, macOS 27.2, local Docker container, Post
 | Synthetic transactions | Ledger lines | Before index | After index | Main scan change |
 |---:|---:|---:|---:|---|
 | 1,000 | 2,000 | 0.215 ms | 0.138 ms | Entry scan to bitmap index scan |
-| 100,000 | 200,000 | 14.519 ms | 9.551 ms | Entry scan to index scan |
+| 100,000 | 200,000 | 13.693 ms | 8.433 ms | Entry scan to index scan |
 | 1,000,000 | 2,000,000 | 133.464 ms | 90.195 ms | Entry scan to index scan |
 
-The query returns 1% of synthetic entry rows for the selected account. Both plans still sequentially scan the transaction table and use a hash join, sort, and window aggregate. At one million transactions, the entry relation read fell from 14,720 to 7,394 local blocks; overall local reads fell from 23,104 to 15,778. The after-index measurements also had a few shared hits, so buffer counts are not a perfectly cold-cache comparison. Index creation and analysis are outside the query execution times.
+The query returns 1% of synthetic entry rows for the selected account. Both plans still sequentially scan the transaction table and use a hash join, sort, and window aggregate. At one million transactions, the entry relation read fell from 14,720 to 7,394 local blocks; overall local reads fell from 23,104 to 15,778. At 100,000 rows, the refreshed run read 2,368 local blocks before the index and 1,638 local blocks after it (including 3 shared hits). These are not perfectly cold-cache comparisons. Index creation and analysis are outside query execution times.
+
+The 100,000-row case was repeated after the quality pass on 2026-11-14; the table reports the latest captured plan. The 1,000- and 1,000,000-row plans are from the earlier same-day run. All remain single-run observations without a controlled warm-up or repeated percentile measurement.
 
 ## Reproduction and interpretation
 

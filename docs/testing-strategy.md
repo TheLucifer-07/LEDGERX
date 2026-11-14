@@ -13,6 +13,7 @@
 | Views | `scripts/test-reports.sh` | Activity/running-balance and period summaries agree with deterministic transactions. |
 | Concurrent requests | `scripts/test-concurrency.sh` | Competing withdrawals cannot overspend; opposite transfers both finish; same-key requests post once; refund cap is respected. |
 | Migration integrity | `scripts/test-migration-checksum.sh` | A changed copy of an applied migration is refused by the runner. |
+| Refund reversal and projection recovery | `scripts/test-financial.sh`, `scripts/test-integrity.sh`, `scripts/test-reports.sh` | Reversed refund capacity is released while history remains; missing projections and balanced wrong-account reversals are detected. |
 
 ## Running tests
 
@@ -24,6 +25,10 @@ Run a single suite with its corresponding `scripts/test-*.sh`. A running local d
 
 ## Current execution record
 
-On 2026-11-14, `scripts/test.sh` completed successfully against the local Docker PostgreSQL 17.12 container. All seven suites passed. The concurrency run observed PostgreSQL transaction lock waits for each contended case; one of two $70/$50 refund contenders was rejected by the $100 cap, and exactly one of two competing withdrawals succeeded. Opposite-direction transfers both succeeded, same-key requests returned one transaction, and fixture balances were restored. See the benchmark record separately; test success is not a performance claim.
+On 2026-11-14, `scripts/test.sh` exited successfully against a new PostgreSQL 17.12 Compose volume. All ten numbered migrations applied in order; the complete seven-group suite passed, including checksum rejection. The test suite checked runtime write denial, refund reversal and reuse of released capacity, projection deletion detection/recreation without changing journal history, and a balanced reversal posted to an incorrect account.
+
+The concurrent run observed lock waits in all four intended races. The withdrawal loser and refund-cap loser each returned the expected SQLSTATE `23514` and matching insufficient-balance/refund-limit message. Both reverse-direction transfers committed, both same-key calls returned the same transaction, resulting ledger lines and balances were checked, and fixture wallets returned to their $100 starting balances. The rollback-only end-to-end demonstration also returned four matched statement rows and a clean auditor result.
+
+The GitHub Actions workflow is configured but has not been observed running from this checkout. Do not claim CI passed until a remote workflow run confirms it. The benchmark results are separate single-run local observations; they are not throughput tests or a production performance guarantee.
 
 The runner checks every command's exit status. A SQL assertion or migration failure stops the sequence with a nonzero exit. Tests currently use fictional, deterministic account codes and do not exercise network payment rails or crash recovery of a production deployment.

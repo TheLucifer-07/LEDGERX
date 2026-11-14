@@ -37,6 +37,7 @@ Conventions: `bigint GENERATED ALWAYS AS IDENTITY` primary keys; `timestamptz` t
 - `posted_balance` — NN `NUMERIC(20,4)`, normalized to account normal side: debit-normal = debits − credits; credit-normal = credits − debits.
 - `updated_at` — NN projection maintenance time.
 - Customer and merchant wallet balances cannot become negative. Runtime users cannot update this table directly. Rebuild derives values only from valid posted journals.
+- An `AFTER INSERT` account trigger inserts a zero projection. The auditor reports missing rows; owner-only rebuild restores them and verifies the complete projection afterward.
 
 ## Transaction and ledger tables
 
@@ -84,6 +85,7 @@ Conventions: `bigint GENERATED ALWAYS AS IDENTITY` primary keys; `timestamptz` t
 - `currency_code` — NN FK, must equal capture currency.
 - `created_at` — NN.
 - A refund row only exists if its posting commits. Refund cap enforcement locks the original capture and sums previous refunds in the same transaction.
+- A refund row remains after reversal. The linked refund transaction's status defines activity: `posted` counts toward the capture limit; `reversed` remains historical and no longer consumes it.
 
 ## Settlement and reconciliation tables
 
@@ -150,6 +152,12 @@ Conventions: `bigint GENERATED ALWAYS AS IDENTITY` primary keys; `timestamptz` t
 - `details` — NN JSONB object with allowlisted non-sensitive values only.
 - `occurred_at` — NN timestamp.
 - Append-only; runtime role cannot directly insert, update, or delete audit rows.
+
+### Refund reporting views
+
+- `v_refund_analysis` reports active refund count/amount and remaining refundable amount based on refund transactions with status `posted`; appended columns report historical totals and reversed-refund count.
+- `v_refund_history` exposes every refund row with refund status and a linked compensating reversal reference when one exists.
+- Both views are read-only and granted to `ledgerx_runtime`.
 
 ## Relationship summary
 

@@ -9,8 +9,9 @@ Follow `LEARNING_GUIDE.md` for the detailed walkthrough. The dependency order is
 5. Atomic business operations and idempotency (`0004`, `0005`).
 6. Auditor, recovery, and restricted privileges (`0006`).
 7. Settlement import and reconciliation (`0007`, `0008`).
-8. Reporting views (`0009`).
+8. Reporting views, active refund history, and reversal verification (`0009`, `0010`).
 9. SQL assertions and concurrent sessions in `tests/`.
-10. Synthetic query benchmark and interview explanations.
+10. The rollback-only walkthrough in `examples/end_to_end_demo.sql`.
+11. Synthetic query benchmark and interview explanations.
 
 For each SQL file, read the adjacent `.md` learning note before inspecting its definitions. After a test run, explain the database behavior in your own words before moving to the next layer.

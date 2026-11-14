@@ -43,6 +43,26 @@ SELECT ledger.import_settlement_item(
 SELECT ledger.complete_settlement_import(:report_batch_batch_id);
 SELECT ledger.reconcile_settlement_batch(:report_batch_batch_id);
 SELECT ledger.close_settlement_batch(:report_batch_batch_id);
+
+SELECT ledger.deposit(
+  'report-tests', 'fund-refund-history-wallet',
+  (SELECT account_id FROM ledger.accounts WHERE account_code = 'SYS-FUND-USD'),
+  (SELECT account_id FROM ledger.accounts WHERE account_code = 'WALLET-1001-USD'),
+  5.00, 'USD', 'reversed-refund-history-fixture'
+);
+SELECT ledger.capture(
+  'report-tests', 'capture-with-reversed-refund',
+  (SELECT account_id FROM ledger.accounts WHERE account_code = 'WALLET-1001-USD'),
+  (SELECT account_id FROM ledger.accounts WHERE account_code = 'MERCHANT-2001-USD'),
+  4.00, 'USD', 'reversed-refund-capture'
+) AS txid \gset reversed_refund_capture_
+SELECT ledger.refund_capture(
+  'report-tests', 'refund-to-reverse', :reversed_refund_capture_txid, 1.00
+) AS txid \gset reversed_refund_
+SELECT ledger.reverse_transaction(
+  'report-tests', 'reverse-report-refund', :reversed_refund_txid
+);
+
 SELECT ledger.capture(
   'report-tests', 'unsettled-capture',
   (SELECT account_id FROM ledger.accounts WHERE account_code = 'WALLET-REPORTS-USD'),
@@ -61,7 +81,18 @@ DECLARE
   v_expected numeric(20,4);
   v_external numeric(20,4);
   v_exceptions bigint;
+  v_historical_count bigint;
+  v_reversed_count bigint;
+  v_active_count bigint;
+  v_reversed_refund_id bigint;
+  v_reversed_capture_id bigint;
 BEGIN
+  SELECT transaction_id INTO v_reversed_refund_id
+    FROM ledger.idempotency_keys
+   WHERE scope = 'report-tests' AND idempotency_key = 'refund-to-reverse';
+  SELECT transaction_id INTO v_reversed_capture_id
+    FROM ledger.idempotency_keys
+   WHERE scope = 'report-tests' AND idempotency_key = 'capture-with-reversed-refund';
   SELECT account_id INTO v_account_id FROM ledger.accounts
    WHERE account_code = 'WALLET-REPORTS-USD';
   SELECT running_normal_balance INTO v_running_balance
@@ -82,6 +113,25 @@ BEGIN
   IF v_refunded <> 5.00 OR v_remaining <> 35.00 THEN
     RAISE EXCEPTION 'refund report mismatch: refunded %, remaining %',
       v_refunded, v_remaining;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM ledger.v_refund_history
+     WHERE refund_transaction_id = v_reversed_refund_id
+       AND refund_status = 'reversed'
+       AND reversal_transaction_id IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'refund history view omitted its valid compensating reversal';
+  END IF;
+  SELECT refund_count, refunded_amount, remaining_refundable_amount,
+         historical_refund_count, reversed_refund_count
+    INTO v_active_count, v_refunded, v_remaining, v_historical_count, v_reversed_count
+    FROM ledger.v_refund_analysis
+   WHERE capture_transaction_id = v_reversed_capture_id;
+  IF v_active_count <> 0 OR v_refunded <> 0 OR v_remaining <> 4.00
+     OR v_historical_count <> 1 OR v_reversed_count <> 1 THEN
+    RAISE EXCEPTION 'active/history refund reporting mismatch: %, %, %, %, %',
+      v_active_count, v_refunded, v_remaining, v_historical_count, v_reversed_count;
   END IF;
 
   SELECT expected_gross_total, external_gross_total, exception_count

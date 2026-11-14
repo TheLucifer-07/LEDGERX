@@ -14,13 +14,13 @@
 
 **How does idempotency survive concurrency?** A unique `(scope, idempotency_key)` index chooses one owner. A concurrent insert waits; after the winner commits, the second request compares the canonical payload digest and returns the original transaction if equal.
 
-**How are refunds bounded?** The original capture is locked before summing its posted refunds. That serializes competing partial refunds. A different payload with an existing key is rejected, and cumulative refunds cannot exceed the capture.
+**How are refunds bounded?** The original capture is locked before summing refunds whose transactions remain posted. That serializes competing partial refunds. Reversing a refund keeps its historical row but removes it from the active cap; a new refund can use the released capacity.
 
 **What does reconciliation change?** It stores imported external evidence and a versioned comparison result. It never posts or edits an internal ledger transaction.
 
 ## State evidence precisely
 
-The committed local test run passed schema, financial, auditor/rebuild, settlement, reporting, concurrency, and migration checksum suites against PostgreSQL 17.12. Concurrent tests observed lock waits and demonstrated the outcomes above. The benchmark report is local to its recorded container and machine. State those conditions rather than generalizing them to production workloads.
+The complete seven-group test run passed on a new PostgreSQL 17.12 Compose volume on 2026-11-14. The concurrency tests observed the expected lock waits and verified SQLSTATE/error reasons, ledger rows, and balances. The end-to-end demo matched four statement items and returned a clean integrity audit before rolling back. GitHub Actions is configured but has not been run remotely. The benchmark report is local to its recorded container and machine; state those conditions rather than generalizing them.
 
 ## Design trade-offs to discuss
 
