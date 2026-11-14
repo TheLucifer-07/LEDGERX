@@ -44,3 +44,11 @@ scripts/benchmark.sh 100000
 The benchmark writes a text report under `benchmarks/results/` with the observed PostgreSQL version, generated row count, timings, buffer counts, and plans before and after an index is added to temporary synthetic data. It does not alter financial history. Benchmark results are hardware-specific; see [docs/performance-analysis.md](docs/performance-analysis.md).
 
 The migration runner rejects edits to migrations that have already been applied. Add a new numbered migration for schema changes; do not edit an applied migration. Migration and seed scripts can target hosted PostgreSQL through `LEDGERX_DATABASE_URL`; follow the staged role setup in [docs/deployment.md](docs/deployment.md).
+
+## Disclaimer
+
+LedgerX is an educational database engineering project developed for learning and demonstration purposes.
+
+It is not a production-ready payment processing system and has not undergone independent financial security, regulatory or compliance certification.
+
+Do not use it to process real financial transactions.
