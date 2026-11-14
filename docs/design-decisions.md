@@ -1,8 +1,8 @@
-# Proposed Design Decisions and Open Questions
+# V1 Design Decisions
 
 **Status: settled implementation baseline.** The execution brief resolves the choices below. Any later change must be reflected in the tests and docs.
 
-| Topic | Proposed decision | Alternatives | Failure prevented / evidence needed | Interview explanation |
+| Topic | Implemented decision | Alternatives | Failure prevented / evidence | Interview explanation |
 |---|---|---|---|---|
 | Journal balance | Deferred constraint trigger validates count, currency, debit=credit at commit; controlled posting functions and restricted DML | App-only validation; ordinary CHECK | App-only validation can be bypassed; CHECK cannot aggregate rows. Test direct invalid DML, state transition, and rollback. | “The invariant spans rows, so a deferred database constraint validates the final journal at commit.” |
 | Ledger history | Posted lines immutable; corrections are linked compensating journals | Edit/delete old rows | Prevents audit loss and balance drift. Test mutation rejection and exact reversal. | “The ledger records what happened; correction is another event.” |

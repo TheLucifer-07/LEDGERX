@@ -20,4 +20,7 @@ if [[ -z "${LEDGERX_DATABASE_URL:-}" ]]; then
   docker compose up -d --wait db
 fi
 "$ROOT_DIR/scripts/migrate.sh"
+if [[ -z "${LEDGERX_DATABASE_URL:-}" ]]; then
+  "$ROOT_DIR/scripts/configure-dashboard-access.sh"
+fi
 "$ROOT_DIR/scripts/seed.sh"

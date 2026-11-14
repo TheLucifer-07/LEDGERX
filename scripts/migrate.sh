@@ -87,7 +87,10 @@ SELECT NOT EXISTS (
 ) AS needs_apply \\gset
 \\if :needs_apply
 SQL
-  if [[ "$version" != "0001_platform_roles" ]]; then
+  # Role creation and grants need the migration connection's administrative
+  # role. Database objects remain owned by ledgerx_owner as usual.
+  if [[ "$version" != "0001_platform_roles" &&
+        "$version" != "0011_dashboard_read_only_access" ]]; then
     printf 'SET LOCAL ROLE ledgerx_owner;\n' >>"$driver_file"
   fi
   cat "$migration_file" >>"$driver_file"

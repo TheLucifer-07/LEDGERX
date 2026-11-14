@@ -33,7 +33,7 @@ Conventions: `bigint GENERATED ALWAYS AS IDENTITY` primary keys; `timestamptz` t
 
 ### `account_balances`
 
-- `account_id` — PK and FK accounts; exactly one projection row per account.
+- `account_id` — PK and FK accounts; an account trigger creates its projection row.
 - `posted_balance` — NN `NUMERIC(20,4)`, normalized to account normal side: debit-normal = debits − credits; credit-normal = credits − debits.
 - `updated_at` — NN projection maintenance time.
 - Customer and merchant wallet balances cannot become negative. Runtime users cannot update this table directly. Rebuild derives values only from valid posted journals.
@@ -49,7 +49,7 @@ Conventions: `bigint GENERATED ALWAYS AS IDENTITY` primary keys; `timestamptz` t
 - `status` — NN `pending`, `posted`, or `reversed`. A pending header may not commit; rejected requests roll back and do not leave failure records.
 - `amount` — NN positive business amount, `NUMERIC(20,4)`.
 - `currency_code` — NN FK currencies.
-- `source_account_id`, `destination_account_id` — nullable FKs, required according to operation type; CHECK/trigger prevents self-transfer and invalid type/account combinations.
+- `source_account_id`, `destination_account_id` — NN FKs to accounts; CHECK/trigger prevents self-transfer and invalid type/account combinations.
 - `reversal_of_transaction_id` — nullable self-FK, UQ; only one full reversal per original.
 - `request_reference` — nullable fictional correlation value; no secrets or sensitive personal data.
 - `created_at`, `posted_at` — NN creation time and nullable posting time.
@@ -72,7 +72,7 @@ Conventions: `bigint GENERATED ALWAYS AS IDENTITY` primary keys; `timestamptz` t
 - `scope` — NN caller/operation namespace.
 - `idempotency_key` — NN opaque request key.
 - `payload_hash` — NN SHA-256 of a canonical operation/account/currency/amount/reference representation.
-- `transaction_id` — NN UQ FK to the original result.
+- `transaction_id` — nullable UQ FK while the operation is in flight; a deferred trigger requires a completed transaction result before commit.
 - `created_at` — NN.
 - UQ `(scope, idempotency_key)` arbitrates concurrent duplicates. Keys are retained for the business-history lifetime and never reused in V1.
 
@@ -136,7 +136,7 @@ Conventions: `bigint GENERATED ALWAYS AS IDENTITY` primary keys; `timestamptz` t
 - `reconciliation_run_id` — NN FK run.
 - `settlement_item_id` — nullable FK item; NULL for internal-only unmatched results.
 - `transaction_id` — nullable FK transaction; NULL for external-only unmatched results.
-- `result_type` — NN `matched`, `missing_internal`, `missing_external`, `amount_mismatch`, `currency_mismatch`, or `unsettled`.
+- `result_type` — NN constrained to `matched`, `missing_internal`, `missing_external`, `amount_mismatch`, `currency_mismatch`, `transaction_type_mismatch`, or `unsettled`. The reconciliation function writes the first six classifications; unsettled eligible internal activity is exposed by `v_unsettled_transactions`.
 - `expected_amount`, `external_amount` — nullable comparison amounts.
 - `expected_currency_code`, `external_currency_code` — nullable currency evidence.
 - `expected_flow`, `external_flow` — nullable capture/refund classification.

@@ -1,0 +1,22 @@
+server:
+  address: 0.0.0.0
+  port: 8080
+  shutdown: graceful
+spring:
+  application:
+    name: ledgerx-dashboard-api
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:55432/ledgerx}
+    username: ${SPRING_DATASOURCE_USERNAME:ledgerx_dashboard}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    hikari:
+      read-only: true
+      maximum-pool-size: 8
+      connection-timeout: 3000
+  jackson:
+    default-property-inclusion: non_null
+dashboard:
+  cors-origin: ${DASHBOARD_CORS_ORIGIN:http://localhost:5173}
+management:
+  endpoints:
+    enabled-by-default: false

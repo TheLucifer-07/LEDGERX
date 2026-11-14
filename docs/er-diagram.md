@@ -1,23 +1,26 @@
-# Entity Relationship Diagram
+# LedgerX entity relationship diagram
 
-This is the implementation baseline. `account_balances` is a rebuildable projection; `ledger_entries` is the financial source of truth. Settlement evidence, matching, and run results are separate relations.
+The diagram represents the 14 base tables in the current migrations. Optional account ownership supports system clearing accounts. `account_balances` is a derived projection. Settlement statement lines and reconciliation snapshots remain separate from posted internal journals.
 
 ```mermaid
 erDiagram
     CURRENCIES ||--o{ ACCOUNTS : denominates
-    CUSTOMERS ||--o{ ACCOUNTS : owns
-    ACCOUNTS ||--|| ACCOUNT_BALANCES : projects
+    CUSTOMERS o|--o{ ACCOUNTS : owns
+    ACCOUNTS ||--o| ACCOUNT_BALANCES : projects
     CURRENCIES ||--o{ TRANSACTIONS : denominates
+    ACCOUNTS ||--o{ TRANSACTIONS : source
+    ACCOUNTS ||--o{ TRANSACTIONS : destination
     TRANSACTIONS ||--|{ LEDGER_ENTRIES : journals
     ACCOUNTS ||--o{ LEDGER_ENTRIES : receives
     CURRENCIES ||--o{ LEDGER_ENTRIES : denominates
-    TRANSACTIONS ||--o| IDEMPOTENCY_KEYS : originated_by
-    TRANSACTIONS ||--o{ REFUNDS : is_refunded_by
-    TRANSACTIONS ||--o| REFUNDS : refund_operation
+    TRANSACTIONS ||--o| IDEMPOTENCY_KEYS : result_for
+    TRANSACTIONS ||--o{ REFUNDS : original_capture
+    TRANSACTIONS ||--o| REFUNDS : refund_transaction
     TRANSACTIONS ||--o| TRANSACTIONS : reversed_by
     CURRENCIES ||--o{ SETTLEMENT_BATCHES : denominates
+    CURRENCIES ||--o{ SETTLEMENT_ITEMS : denominates
     SETTLEMENT_BATCHES ||--o{ SETTLEMENT_ITEMS : imports
-    SETTLEMENT_BATCHES ||--o{ RECONCILIATION_RUNS : executes
+    SETTLEMENT_BATCHES ||--o{ RECONCILIATION_RUNS : has_runs
     RECONCILIATION_RUNS ||--o{ RECONCILIATION_RESULTS : records
     SETTLEMENT_ITEMS o|--o{ RECONCILIATION_RESULTS : compared_in
     TRANSACTIONS o|--o{ RECONCILIATION_RESULTS : compared_in
@@ -28,8 +31,9 @@ erDiagram
 
     CURRENCIES {
       text currency_code PK
-      smallint minor_unit
       text name
+      smallint minor_unit
+      boolean active
     }
     CUSTOMERS {
       bigint customer_id PK
@@ -49,7 +53,7 @@ erDiagram
       timestamptz created_at
     }
     ACCOUNT_BALANCES {
-      bigint account_id PK_FK
+      bigint account_id PK
       numeric posted_balance
       timestamptz updated_at
     }
@@ -60,7 +64,10 @@ erDiagram
       text status
       numeric amount
       text currency_code FK
-      bigint reversal_of_transaction_id FK_UK
+      bigint source_account_id FK
+      bigint destination_account_id FK
+      bigint reversal_of_transaction_id FK
+      text request_reference
       timestamptz created_at
       timestamptz posted_at
     }
@@ -84,7 +91,7 @@ erDiagram
     REFUNDS {
       bigint refund_id PK
       bigint original_transaction_id FK
-      bigint refund_transaction_id FK_UK
+      bigint refund_transaction_id FK
       numeric amount
       text currency_code FK
       timestamptz created_at
@@ -92,12 +99,14 @@ erDiagram
     SETTLEMENT_BATCHES {
       bigint settlement_batch_id PK
       text external_batch_ref UK
-      text currency_code FK
-      text status
+      text source_name
       date statement_date
+      text currency_code FK
       timestamptz window_start
       timestamptz window_end
+      text status
       timestamptz imported_at
+      timestamptz closed_at
     }
     SETTLEMENT_ITEMS {
       bigint settlement_item_id PK
@@ -107,11 +116,12 @@ erDiagram
       text flow
       text currency_code FK
       timestamptz external_at
+      text internal_reference
     }
     SETTLEMENT_MATCHES {
       bigint settlement_match_id PK
-      bigint settlement_item_id FK_UK
-      bigint transaction_id FK_UK
+      bigint settlement_item_id FK
+      bigint transaction_id FK
       timestamptz matched_at
     }
     RECONCILIATION_RUNS {
@@ -124,13 +134,13 @@ erDiagram
     RECONCILIATION_RESULTS {
       bigint reconciliation_result_id PK
       bigint reconciliation_run_id FK
-      bigint settlement_item_id FK_NULL
-      bigint transaction_id FK_NULL
+      bigint settlement_item_id FK
+      bigint transaction_id FK
       text result_type
       numeric expected_amount
       numeric external_amount
-      text expected_currency_code
-      text external_currency_code
+      text expected_currency_code FK
+      text external_currency_code FK
       text expected_flow
       text external_flow
       timestamptz evaluated_at
@@ -147,4 +157,21 @@ erDiagram
     }
 ```
 
-Audit entity references are intentionally generic for append-only event capture; they are not substitutes for typed business foreign keys.
+## Relationship and integrity notes
+
+- Each account has a projection row created by an account trigger. The auditor detects a missing row and the owner-only rebuild can restore it; the projection is therefore a maintained invariant, not the source of truth.
+- Transaction source and destination accounts are explicit foreign keys. Self-transfers are prohibited by a check constraint.
+- Every committed posted transaction created through the controlled functions has a completed idempotency result. A unique constraint on `(scope, idempotency_key)` serializes retries; the transaction result reference is also unique.
+- A journal has two or more positive lines. A deferred constraint trigger checks one-currency debit/credit equality at commit.
+- `reversal_of_transaction_id` is unique, allowing at most one full reversal per original transaction. Reversal rows are themselves transactions with compensating journal lines.
+- `settlement_items.internal_reference` is a statement-supplied reference, not a foreign key. It is matched against a posted capture/refund transaction reference during reconciliation.
+- Unique constraints on each side of `settlement_matches` enforce one-to-one matching. Result rows may reference an external item, an internal transaction, or both; the result snapshot is append-only.
+- `audit_logs.entity_id` is intentionally generic and is not a foreign key. Typed optional transaction/account references are retained where available.
+
+## SQL source
+
+- [Core tables and constraints](../database/migrations/0002_core_schema.sql)
+- [Posting, ledger, and audit triggers](../database/migrations/0003_integrity_triggers.sql)
+- [Settlement and reconciliation additions](../database/migrations/0007_settlement_reconciliation.sql)
+- [Explicit settlement window](../database/migrations/0008_settlement_windows.sql)
+- [Projection and refund history additions](../database/migrations/0010_refund_reversal_and_projection_integrity.sql)

@@ -1,34 +1,35 @@
-# Testing Strategy
+# Testing strategy and observed results
 
 ## Test layers
 
-`scripts/test.sh` runs setup and then schema, financial operations, integrity recovery, settlement, reporting, concurrency, and migration-checksum checks in order. SQL tests use `ON_ERROR_STOP` and explicit assertions that raise on failure. Most business-path fixtures run in a transaction and roll back. The concurrency harness uses independent `psql` sessions; those tests commit and restore their wallet fixtures.
+[`scripts/test.sh`](../scripts/test.sh) runs setup and then seven suites. SQL assertions use `ON_ERROR_STOP` and raise on failure. Most business-path fixtures run in a transaction and roll back. The concurrency harness uses independent `psql` sessions; those scenarios commit demonstration transactions and restore their fixture wallet balances.
 
-| Area | Test | Evidence asserted |
+| Area | Runner | Evidence checked |
 |---|---|---|
-| Row constraints and journal integrity | `scripts/test-schema.sh` | Invalid rows rejected, balanced journal updates the projection, posted lines are immutable, deferred unbalanced journal fails. |
-| Financial functions and privileges | `scripts/test-financial.sh` | Deposit, withdrawal, transfer, capture, refund, reversal, retry, payload mismatch, invalid business requests, rollback, and runtime DML denial. |
-| Projection and auditor | `scripts/test-integrity.sh` | Deliberate projection corruption is found; owner-only rebuild restores parity. |
-| Settlement | `scripts/test-settlement.sh` | Duplicate import behavior, matching classifications, versioning, close safeguards, and post-close import denial. |
-| Views | `scripts/test-reports.sh` | Activity/running-balance and period summaries agree with deterministic transactions. |
-| Concurrent requests | `scripts/test-concurrency.sh` | Competing withdrawals cannot overspend; opposite transfers both finish; same-key requests post once; refund cap is respected. |
-| Migration integrity | `scripts/test-migration-checksum.sh` | A changed copy of an applied migration is refused by the runner. |
-| Refund reversal and projection recovery | `scripts/test-financial.sh`, `scripts/test-integrity.sh`, `scripts/test-reports.sh` | Reversed refund capacity is released while history remains; missing projections and balanced wrong-account reversals are detected. |
+| Schema and journal integrity | [`test-schema.sh`](../scripts/test-schema.sh) | Invalid rows rejected, balanced journal updates projection, posted lines immutable, deferred unbalanced journal fails. |
+| Financial operations and privileges | [`test-financial.sh`](../scripts/test-financial.sh) | Deposits, withdrawals, transfer, capture, refunds, reversals, rollback, same-key retry, changed-payload rejection, refund limits, and runtime direct-write denial. |
+| Projection and auditor | [`test-integrity.sh`](../scripts/test-integrity.sh) | Projection corruption and missing rows are found; owner-only rebuild restores parity; reversal journal account/side mismatches are reported. |
+| Settlement | [`test-settlement.sh`](../scripts/test-settlement.sh) | Duplicate imports, matching classifications, reconciliation versions, close safeguards, and post-close import denial. |
+| Reporting | [`test-reports.sh`](../scripts/test-reports.sh) | Account activity/running balances and period, refund, settlement, exception, and unsettled reports match deterministic transactions. |
+| Concurrency | [`test-concurrency.sh`](../scripts/test-concurrency.sh) | Competing withdrawals, opposite transfers, same-key requests, and competing refunds use separate database sessions. |
+| Migration integrity | [`test-migration-checksum.sh`](../scripts/test-migration-checksum.sh) | A modified copy of an applied migration is rejected by the runner. |
 
-## Running tests
+Tests are fictional SQL fixtures. They do not prove correctness for every possible database schedule, external payment network, production outage, or crash-recovery scenario.
 
-```sh
-scripts/test.sh
-```
+## Local execution record
 
-Run a single suite with its corresponding `scripts/test-*.sh`. A running local database is reused. The concurrency test leaves demonstration history and restores account balances, so repeating the suite does not require deleting the database.
+**Observed 2026-11-14:** `bash scripts/test.sh` exited successfully against the existing PostgreSQL 17.12 Compose database. Setup verified all 10 numbered migrations and checksums; reference seed inserts were idempotent and added no rows. All seven suites passed.
 
-## Current execution record
+The test output showed lock waits in the four intended concurrency scenarios. One of two simultaneous withdrawals was rejected for insufficient funds, both opposite-direction transfers completed, both same-key calls returned the same transaction, and the refund-cap loser was rejected. The concurrency harness reported all scenarios passed and fixture balances restored. The suite also passed journal constraints, rollback, runtime privilege denial, refund reversal and capacity reuse, projection recovery, settlement classification/close rules, report assertions, and modified-migration rejection.
 
-On 2026-11-14, `scripts/test.sh` exited successfully against a new PostgreSQL 17.12 Compose volume. All ten numbered migrations applied in order; the complete seven-group suite passed, including checksum rejection. The test suite checked runtime write denial, refund reversal and reuse of released capacity, projection deletion detection/recreation without changing journal history, and a balanced reversal posted to an incorrect account.
+This is an observed local run, not a claim that this documentation-only working tree has been retested after its edits. The suite leaves a small number of committed demonstration transactions in the fixture history while restoring account balances; it does not clear or reset the database volume.
 
-The concurrent run observed lock waits in all four intended races. The withdrawal loser and refund-cap loser each returned the expected SQLSTATE `23514` and matching insufficient-balance/refund-limit message. Both reverse-direction transfers committed, both same-key calls returned the same transaction, resulting ledger lines and balances were checked, and fixture wallets returned to their $100 starting balances. The rollback-only end-to-end demonstration also returned four matched statement rows and a clean auditor result.
+## GitHub Actions record
 
-The GitHub Actions workflow is configured but has not been observed running from this checkout. Do not claim CI passed until a remote workflow run confirms it. The benchmark results are separate single-run local observations; they are not throughput tests or a production performance guarantee.
+The [latest observed Database CI run](https://github.com/TheLucifer-07/LEDGERX/actions/runs/43577577172) completed successfully on 2026-11-14 for commit `76ee06e` (run #2). It ran the repository's workflow against a clean ephemeral PostgreSQL 17 Compose volume. This run predates the current local documentation changes; no remote run has tested those unpushed edits.
 
-The runner checks every command's exit status. A SQL assertion or migration failure stops the sequence with a nonzero exit. Tests currently use fictional, deterministic account codes and do not exercise network payment rails or crash recovery of a production deployment.
+The workflow is defined in [`.github/workflows/database-ci.yml`](../.github/workflows/database-ci.yml). It creates ephemeral credentials, applies setup, runs `scripts/test.sh`, and removes its CI volume afterward. That cleanup applies to the ephemeral CI job, not a developer's local database.
+
+## Benchmark record
+
+Benchmarks are not part of `scripts/test.sh`. Captured query plans and single-run measurements are in [`benchmarks/results/`](../benchmarks/results/); methodology and limitations are in [`performance-analysis.md`](performance-analysis.md). They measure a temporary synthetic account-activity query, not posting throughput. No benchmark was run as part of the most recent local test execution.

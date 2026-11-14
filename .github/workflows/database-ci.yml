@@ -16,7 +16,8 @@ jobs:
       - name: Create local CI database credentials
         run: |
           password="$(openssl rand -hex 24)"
-          printf 'POSTGRES_USER=ledgerx_admin\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=ledgerx\nPOSTGRES_HOST_PORT=55432\n' "$password" > .env
+          dashboard_password="$(openssl rand -hex 24)"
+          printf 'POSTGRES_USER=ledgerx_admin\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=ledgerx\nPOSTGRES_HOST_PORT=55432\nPOSTGRES_DASHBOARD_PASSWORD=%s\n' "$password" "$dashboard_password" > .env
 
       - name: Start clean PostgreSQL 17 service and apply migrations
         run: |

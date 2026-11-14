@@ -4,7 +4,7 @@ This is a study sequence through the implementation as it exists. Keep a Postgre
 
 ## 1. Start with the model
 
-Read `docs/requirements.md`, `docs/architecture.md`, `docs/er-diagram.md`, and `docs/data-dictionary.md`. Be able to explain why an account balance is a projection, why a journal is single-currency, and why settlement imports do not create ledger entries.
+Read `docs/requirements.md`, `docs/system-architecture.md`, `docs/architecture.md`, `docs/er-diagram.md`, and `docs/data-dictionary.md`. Be able to explain why an account balance is a projection, why a journal is single-currency, and why settlement imports do not create ledger entries.
 
 ## 2. Set up PostgreSQL and understand migrations
 
@@ -28,11 +28,11 @@ Read migrations `0005` and `0004`'s idempotency sections, then `tests/concurrenc
 
 ## 7. Study refunds, reversals, and recovery
 
-Read `tests/financial_operations.sql`, migrations `0006` and `0010`, and their learning notes. Run `scripts/test-financial.sh` and `scripts/test-integrity.sh`. Explain why only posted refund transactions consume a capture limit, how the auditor compares reversal lines by account and side, and why projection recovery is restricted to the owner role.
+Read `tests/financial_operations.sql`, [the refund lifecycle diagram](docs/refund-reversal-lifecycle.md), migrations `0006` and `0010`, and their learning notes. Run `scripts/test-financial.sh` and `scripts/test-integrity.sh`. Explain why only posted refund transactions consume a capture limit, how the auditor compares reversal lines by account and side, and why projection recovery is restricted to the owner role.
 
 ## 8. Trace settlement evidence
 
-Read migrations `0007` and `0008`, `tests/settlement_reconciliation.sql`, and `docs/transaction-lifecycle.md`. Explain the half-open eligibility window, one-to-one cardinality, reconciliation run versions, and why a discrepancy does not mutate a financial transaction.
+Read migrations `0007` and `0008`, `tests/settlement_reconciliation.sql`, and [the settlement reconciliation diagram](docs/settlement-reconciliation.md). Explain the half-open eligibility window, one-to-one cardinality, reconciliation run versions, and why a discrepancy does not mutate a financial transaction.
 
 ## 9. Read reports and query plans
 

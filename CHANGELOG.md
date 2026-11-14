@@ -1,12 +1,9 @@
 # Changelog
 
-## Unreleased — initial implementation
+## Unreleased
 
-- Added PostgreSQL 17 Compose infrastructure and checksum-verified SQL migrations.
-- Added customer, account, currency, transaction, journal, idempotency, refund, settlement, reconciliation, audit, and balance-projection schema.
-- Added controlled deposits, withdrawals, transfers, captures, refunds, reversals, integrity auditing, and projection rebuild.
-- Added gross one-to-one settlement import and versioned reconciliation.
-- Added financial reporting views and a repeatable SQL/Bash test suite, including separate-session concurrency scenarios.
-- Added GitHub Actions workflow and learner-focused documentation.
-- Added migration 0010 for active refund semantics, projection completeness and recovery, reversal journal auditing, and refund history reporting.
-- Strengthened concurrent-session assertions and cleanup, added a rollback-only end-to-end SQL demo, and documented hosted PostgreSQL deployment.
+- Reworked the README around the project's business problem, implemented database guarantees, reproducible workflows, measured plans, test evidence, and documented limits.
+- Added an architecture overview and refund/reversal and settlement lifecycle diagrams; corrected the ER diagram to include actual account, currency, reversal, and settlement relationships.
+- Recorded the observed local test run separately from the successful GitHub Actions run and clarified that both predate this documentation update.
+- Added a guide for future genuine DBeaver screenshots; no screenshots or query results were fabricated.
+- Expanded ignore rules for local environment variants, PostgreSQL dumps, backups, and operating-system metadata.

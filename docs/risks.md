@@ -1,26 +1,24 @@
-# Proposed Technical Risks and Attention Areas
+# Known engineering risks and controls
 
-| Risk | Why it matters | Proposed mitigation / review point |
+This is an implementation review, not a production risk assessment. The controls below describe the current V1 database; the remaining limits are intentional scope boundaries or areas that need broader verification.
+
+| Risk | Current control | Remaining limit and evidence |
 |---|---|---|
-| Cross-row journal invariant | CHECK constraints cannot aggregate sibling lines; direct writers could produce unbalanced postings. | Deferred constraint trigger plus final-state checks, protected posting functions, restricted DML, and tests for each mutation path. |
-| Trigger concurrency race | Deferred checks can be undermined by an unrestricted multi-writer path that changes the same journal concurrently. | Make transaction-header posting the serialization point; lock header; revoke direct DML; test concurrent attempts and document trigger protocol. |
-| Projection diverges from journal | Balance cache drift can authorize an invalid withdrawal. | Update it in the same transaction, only through controlled functions/triggers; add rebuild/parity query and assertions. Ledger stays authoritative. |
-| Lock-order mistakes | Transfers involving overlapping account sets can deadlock. | Lock all account IDs in ascending order; test two-session reverse-direction transfers; bounded retry for deadlock SQLSTATE. |
-| Stale balance read after lock wait | A transaction may acquire a lock after another commits but still use an earlier statement snapshot. | Under READ COMMITTED, acquire lock then read balance in a subsequent statement; explain snapshot semantics in implementation. |
-| Idempotency key race or reuse | Concurrent duplicate requests could double-post, or changed payload could masquerade as a retry. | Unique `(scope,key)`, canonical hash, conflict wait/read, strict mismatch error; define key retention and test concurrent retry. |
-| Partial-refund race | Two refunds can both observe remaining cap and exceed it. | Lock original transaction before cumulative sum and write; test simultaneous near-limit requests. |
-| Currency mismatch | Numerically equal amounts from different currencies are not interchangeable. | Currency FK, single-currency journal rule and trigger checks; exclude FX initially. |
-| Refund/reversal overlap | A full reversal after partial refunds could compensate value twice. | V1 prohibits reversal after any posted refund; lock original and test rejection. |
-| Settlement ambiguity | External lines may be gross/net, include fees, duplicate records, or arrive late. | V1 uses gross capture/refund amounts, excludes fees/taxes/FX, enforces one-to-one matching, retains import evidence, and versions reconciliation runs. |
-| Durable failure analytics vs atomicity | Logging failure in the same transaction rolls back; autonomous persistence adds a separate consistency boundary. | V1 rejected requests raise/roll back; durable failed-request analytics are out of scope. |
-| Numeric precision and rounding | NUMERIC is exact but a typmod can round excess fractional digits before later checks. | Accept unconstrained numeric at function boundary, validate scale/range first, then insert into NUMERIC(20,4); test too many decimals. |
-| Time and date boundaries | Time zones and statement cutoffs can skew daily reporting/settlement matching. | Use `timestamptz`, UTC storage, explicit business timezone/cutoff in report parameters. |
-| Trigger complexity | Hidden side effects are harder for learners to explain and debug. | Keep triggers narrow, named, documented, and covered by SQL assertions; put business orchestration in focused functions. |
-| Benchmark reproducibility | Results vary with hardware, cache, dataset, and config. | Record environment/version/data scale/query/plan and rerun; report observations rather than general claims. |
+| A journal is unbalanced or uses mixed currencies | Deferred constraint triggers inspect the final posted journal at commit; runtime writes go through approved functions. | These are database-level guarantees for the implemented write path. [Schema tests](../tests/schema_integrity.sql) cover balanced and unbalanced journals; [financial tests](../tests/financial_operations.sql) exercise posting and rollback. |
+| Posted history is edited to fix an error | Guards reject mutation of posted financial fields and journal entries. Corrections use compensating transactions. | A database administrator remains a trusted operator. [Trigger tests](../tests/schema_integrity.sql) and [reversal tests](../tests/financial_operations.sql) cover normal paths. |
+| Balance projection diverges from the journal | Projection changes share the posting transaction. An independent auditor detects mismatches or missing rows; an owner-only procedure rebuilds and verifies the projection. | Recovery assumes the journal passes audit. [Integrity tests](../tests/integrity_auditor.sql) cover corruption, missing rows, and repair. |
+| Concurrent operations overspend or deadlock | `READ COMMITTED`, ascending account row locks, and a fresh balance read after locking serialize operations on shared accounts. Refunds lock their capture before checking the cap. | Stable lock order reduces but cannot eliminate all deadlocks. The tests cover competing withdrawals, opposite transfers, duplicate keys, and refund caps—not every schedule. [Concurrency runner](../scripts/test-concurrency.sh). |
+| A retry posts twice or changes meaning under the same key | Unique `(scope, idempotency_key)` and a canonical payload hash return the original transaction for a same-payload retry and reject a changed payload. | Keys are retained indefinitely in V1. [Financial assertions](../tests/financial_operations.sql) and same-key [concurrency fixtures](../tests/concurrency/). |
+| Refunds exceed a capture or a reversal double-compensates value | The original capture is locked while active posted refunds are summed; reversal uses opposite-side journal lines and one reversal per original. | Full capture reversal is blocked while any refund is active; reversing a reversal is unsupported. [Refund tests](../tests/financial_operations.sql). |
+| Settlement evidence is ambiguous or corrected after import | External items remain separate and append-only; one-to-one reference matching records versioned comparison results. | V1 is gross-only, has no fees/FX/split matching, and has no batch reopen/corrected-import flow. See [settlement tests](../tests/settlement_reconciliation.sql). |
+| Decimal precision or currency is mishandled | Monetary columns use `NUMERIC(20,4)`; functions check amount scale against active currency metadata before typmod assignment. Journals and accounts use explicit currencies. | FX is not implemented. [Financial tests](../tests/financial_operations.sql) include invalid request and precision paths. |
+| Rejected requests need durable operational analytics | A rejected operation raises and rolls back all its financial work. | Failed-request telemetry is out of scope; it would need a separately defined logging boundary. |
+| Local environment is mistaken for deployment guidance | Compose binds to loopback and `.env` is ignored. The hosted guide recommends separate migration/runtime credentials and provider TLS. | Local Compose uses an admin superuser and no TLS. Backups, restore drills, HA, retention, and independent security review are not implemented. [Security model](security-model.md) · [deployment notes](deployment.md). |
+| Query-plan timings are generalized beyond their workload | Benchmark artifacts preserve PostgreSQL version, generated row counts, plans, and buffers. | The captured observations are single-run, synthetic, temporary-table query plans—not posting throughput or production forecasts. [Performance analysis](performance-analysis.md). |
 
-## Resolved architecture questions
+## Review before extending V1
 
-- A full reversal cannot follow any posted refund.
-- Settlement statements use gross amounts; fee accounting is a later explicit extension.
-- Rejected requests do not produce durable records in V1.
-- Fictional reference data uses a small documented set of currencies and minor-unit scales; no exchange rates are loaded.
+- Keep all runtime financial writes behind the controlled functions. Any new privileged writer must be reviewed for interactions with deferred journal checks and concurrent updates.
+- Define an explicit account/customer timezone policy before adding business-day reports or statement cutoffs beyond the caller-supplied half-open timestamp window and UTC calendar views.
+- Add tests for new refund, reversal, settlement, or lock interactions before adding behavior; do not infer coverage from a nearby happy-path test.
+- Repeat benchmarks with warm-up and multiple runs in a fixed environment before making an index or materialization claim.
