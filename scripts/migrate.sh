@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MIGRATIONS_DIR="$ROOT_DIR/database/migrations"
+MIGRATIONS_DIR="${LEDGERX_MIGRATIONS_DIR:-$ROOT_DIR/database/migrations}"
 
 if [[ ! -f "$ROOT_DIR/.env" ]]; then
   printf 'Missing .env. Run scripts/setup.sh after copying .env.example.\n' >&2

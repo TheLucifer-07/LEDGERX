@@ -1,4 +1,4 @@
-# Proposed Entity Relationship Diagram
+# Entity Relationship Diagram
 
 This is the implementation baseline. `account_balances` is a rebuildable projection; `ledger_entries` is the financial source of truth. Settlement evidence, matching, and run results are separate relations.
 
@@ -17,7 +17,6 @@ erDiagram
     TRANSACTIONS ||--o| TRANSACTIONS : reversed_by
     CURRENCIES ||--o{ SETTLEMENT_BATCHES : denominates
     SETTLEMENT_BATCHES ||--o{ SETTLEMENT_ITEMS : imports
-    TRANSACTIONS o|--o{ SETTLEMENT_ITEMS : may_match
     SETTLEMENT_BATCHES ||--o{ RECONCILIATION_RUNS : executes
     RECONCILIATION_RUNS ||--o{ RECONCILIATION_RESULTS : records
     SETTLEMENT_ITEMS o|--o{ RECONCILIATION_RESULTS : compared_in
@@ -96,6 +95,8 @@ erDiagram
       text currency_code FK
       text status
       date statement_date
+      timestamptz window_start
+      timestamptz window_end
       timestamptz imported_at
     }
     SETTLEMENT_ITEMS {
@@ -128,6 +129,10 @@ erDiagram
       text result_type
       numeric expected_amount
       numeric external_amount
+      text expected_currency_code
+      text external_currency_code
+      text expected_flow
+      text external_flow
       timestamptz evaluated_at
     }
     AUDIT_LOGS {

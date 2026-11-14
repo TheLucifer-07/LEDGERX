@@ -46,7 +46,7 @@ Conventions: `bigint GENERATED ALWAYS AS IDENTITY` primary keys; `timestamptz` t
 - `transaction_ref` — NN UQ fictional reference.
 - `transaction_type` — NN `deposit`, `withdrawal`, `transfer`, `capture`, `refund`, or `reversal`.
 - `status` — NN `pending`, `posted`, or `reversed`. A pending header may not commit; rejected requests roll back and do not leave failure records.
-- `amount` — NN positive business amount.
+- `amount` — NN positive business amount, `NUMERIC(20,4)`.
 - `currency_code` — NN FK currencies.
 - `source_account_id`, `destination_account_id` — nullable FKs, required according to operation type; CHECK/trigger prevents self-transfer and invalid type/account combinations.
 - `reversal_of_transaction_id` — nullable self-FK, UQ; only one full reversal per original.
@@ -93,6 +93,7 @@ Conventions: `bigint GENERATED ALWAYS AS IDENTITY` primary keys; `timestamptz` t
 - `external_batch_ref` — NN UQ source batch reference.
 - `source_name` — NN external statement source label.
 - `statement_date` — NN.
+- `window_start`, `window_end` — NN half-open event interval `[start, end)` defining internal capture/refund eligibility.
 - `currency_code` — NN FK currencies.
 - `status` — NN `importing`, `imported`, `reconciled`, or `closed`.
 - `imported_at`, `closed_at` — lifecycle timestamps.
@@ -107,7 +108,7 @@ Conventions: `bigint GENERATED ALWAYS AS IDENTITY` primary keys; `timestamptz` t
 - `flow` — NN `capture` or `refund`; supports direction-aware comparison.
 - `currency_code` — NN FK and must match batch currency.
 - `external_at` — nullable source timestamp.
-- `raw_reference` — nullable non-sensitive reference text.
+- `internal_reference` — nullable external reference text matched to `transactions.transaction_ref`.
 - Imported statement evidence is append-only and is not a ledger entry.
 
 ### `settlement_matches`
@@ -135,8 +136,10 @@ Conventions: `bigint GENERATED ALWAYS AS IDENTITY` primary keys; `timestamptz` t
 - `transaction_id` — nullable FK transaction; NULL for external-only unmatched results.
 - `result_type` — NN `matched`, `missing_internal`, `missing_external`, `amount_mismatch`, `currency_mismatch`, or `unsettled`.
 - `expected_amount`, `external_amount` — nullable comparison amounts.
+- `expected_currency_code`, `external_currency_code` — nullable currency evidence.
+- `expected_flow`, `external_flow` — nullable capture/refund classification.
 - `evaluated_at` — NN timestamp.
-- Partial unique indexes on `(run_id, settlement_item_id)` and `(run_id, transaction_id)` prevent duplicates within a run.
+- Partial unique indexes on `(reconciliation_run_id, settlement_item_id)` and `(reconciliation_run_id, transaction_id)` prevent duplicates within a run.
 
 ### `audit_logs`
 

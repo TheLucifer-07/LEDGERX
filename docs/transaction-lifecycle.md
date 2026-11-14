@@ -1,4 +1,4 @@
-# Proposed Transaction Lifecycle
+# Transaction Lifecycle
 
 ## Business transaction state
 

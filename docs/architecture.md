@@ -1,4 +1,4 @@
-# LedgerX Proposed Database Architecture
+# LedgerX Database Architecture
 
 **Status: implementation baseline.** The execution brief resolves the initial open choices as recorded in `design-decisions.md`; this document is kept synchronized with migrations.
 
@@ -30,7 +30,7 @@ The word “deposit” is modeled as a movement from a configured system funding
 4. A trigger protects posted `ledger_entries` from update/delete and rejects new lines for a posted header. State transition guards prevent changing a posted transaction's financial fields. Corrections are new linked compensating transactions.
 5. Only controlled posting functions may write transaction and ledger tables. Direct DML is revoked from the normal application role. This privilege boundary matters: cross-row triggers alone do not provide a safe public posting protocol if arbitrary writers can race to mutate one journal.
 
-The proposed deferred constraint trigger is appropriate because balance is an aggregate across rows and cannot be expressed by a normal `CHECK`. It must be attached to both ledger-line changes and the header transition to `posted`, declared `DEFERRABLE INITIALLY DEFERRED`, and validate the final transaction state. The posting function and lock discipline form part of the invariant, not an optional convenience. During implementation, the trigger must be tested for inserts, updates, deletes, state transitions, rollback, and multiple journals in one transaction.
+The deferred constraint trigger is appropriate because balance is an aggregate across rows and cannot be expressed by a normal `CHECK`. It is attached to relevant ledger-line changes and the header transition to `posted`, declared `DEFERRABLE INITIALLY DEFERRED`, and validates the final transaction state. The posting function and lock discipline form part of the invariant, not an optional convenience. Tests cover balanced and unbalanced journals, state transition, immutability, rollback, and operation paths.
 
 ## Atomicity, idempotency, and locking
 
@@ -42,7 +42,7 @@ Use `READ COMMITTED` plus `SELECT ... FOR UPDATE` on all touched account rows in
 
 ## Settlement and reconciliation
 
-`settlement_batches` holds batch metadata and one currency. `settlement_items` holds imported external statement lines, including external reference, gross amount, direction, currency, and optional match to an internal transaction. Imported lines are not ledger entries and never change a customer balance. V1 matches capture and refund transactions one-to-one; unique constraints prevent reusing an internal transaction or external row. Reconciliation records preserve each run's results: matched, missing internal transaction, missing external statement item, amount mismatch, currency mismatch, or unsettled. Unmatched external rows have no transaction FK. Fees, taxes, and FX are excluded.
+`settlement_batches` holds batch metadata, a currency, and a half-open `[window_start, window_end)` eligibility interval. `settlement_items` holds imported external statement lines, including external reference, gross amount, direction, currency, and an optional internal reference. Imported lines are not ledger entries and never change a customer balance. V1 matches capture and refund transactions one-to-one; unique constraints prevent reusing an internal transaction or external row. Reconciliation records preserve each run's results: matched, missing internal transaction, missing external statement item, amount mismatch, currency mismatch, transaction-type mismatch, or unsettled. Unmatched external rows have no match relation. Fees, taxes, and FX are excluded.
 
 Expected totals are computed from posted capture and refund records eligible for the batch statement date; each external row carries a positive gross amount and a direction (`capture` or `refund`). Reconciliation runs are numbered per batch and store a result snapshot without changing the ledger or imported evidence. A batch can close only after a reconciliation run; closed batches reject further imports and matches. A deliberate reopen operation is out of scope for V1.
 
@@ -54,19 +54,24 @@ Start with B-tree indexes driven by access paths and foreign keys, including uni
 
 Docker Compose runs a pinned PostgreSQL 17 image with a named volume and health check. Credentials come from a local ignored environment file/example, never committed secrets. Ordered SQL files are applied once by a Bash setup script using `psql` with `ON_ERROR_STOP`. Schema changes are forward migrations; development reset is an explicit destructive script. Separate owner/migration and restricted runtime/test roles are preferred even in the local environment.
 
-## Proposed SQL execution order
+## SQL execution order
 
-1. `database/migrations/0001_core_schema.sql` — roles/schema, currencies, customers/accounts, transaction/ledger, idempotency/refund, settlement/reconciliation, audit tables and row-local constraints.
-2. `database/migrations/0002_indexes_and_triggers.sql` — access-path indexes, immutability/state guards, projection maintenance, deferred journal check and audit capture.
-3. `database/migrations/0003_financial_functions.sql` — controlled posting primitives, deposits, withdrawals, transfers, captures/refunds/reversals, projection auditor/rebuild.
-4. `database/migrations/0004_settlement_and_reports.sql` — batch import, matching/reconciliation, useful views and reporting routines.
-5. `seeds/reference_data.sql` then `seeds/demo_data.sql` — currencies/system accounts, then synthetic fictional rows.
-6. `tests/` scripts — run after migrations and reference data; concurrency scripts require independent sessions.
-7. `benchmarks/` scripts — deterministic scale generation then measured query runs.
+1. `database/migrations/0001_platform_roles.sql` — namespace and owner/runtime roles.
+2. `database/migrations/0002_core_schema.sql` — normalized business, ledger, idempotency, settlement, reconciliation and audit tables.
+3. `database/migrations/0003_integrity_triggers.sql` — access-path indexes, state guards, projection updates, deferred journal checks and audit capture.
+4. `database/migrations/0004_financial_operations.sql` — controlled deposits, withdrawals, transfers, captures, refunds and reversals.
+5. `database/migrations/0005_idempotency_result_guard.sql` — validate the final committed idempotency result.
+6. `database/migrations/0006_integrity_auditor.sql` — independent checks and privileged projection recovery.
+7. `database/migrations/0007_settlement_reconciliation.sql` — batch import and versioned matching.
+8. `database/migrations/0008_settlement_windows.sql` — explicit eligible event windows.
+9. `database/migrations/0009_reporting_views.sql` — useful financial and reconciliation views.
+10. `seeds/reference_data.sql` — currencies, fictional customers, system accounts, wallets, and initial projection rows.
+11. `tests/` scripts — run after migrations and reference data; concurrency scripts require independent sessions.
+12. `benchmarks/` scripts — deterministic temporary scale generation then measured query runs.
 
 The Bash migration runner applies each SQL migration and checksum record in the same transaction and refuses an already-applied version whose file checksum changed. Every significant SQL file has a neighboring learning note with purpose, dependencies, concepts, alternatives, failure cases, execution, verification, and interview questions.
 
-The exact split may change as dependencies become concrete. Each SQL file will have a neighboring explanation documenting purpose, prerequisites, expected effects, and verification.
+Each migration and significant SQL file has a neighboring explanation documenting purpose, prerequisites, expected effects, and verification. Performance workload methodology and actual observations are in `docs/performance-analysis.md`.
 
 ## Key alternatives considered
 

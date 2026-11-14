@@ -1,0 +1,80 @@
+LedgerX isolated synthetic account-activity benchmark
+Run time UTC: 2026-11-14 06:56:54
+Host: Darwin Animireddys-MacBook-Pro.local 27.2.0 Darwin Kernel Version 27.2.0: Wed Oct 14 23:47:07 PDT 2026; root:xnu-13432.41.4~25/RELEASE_ARM64_T8132 arm64
+                                                          version                                                           
+----------------------------------------------------------------------------------------------------------------------------
+ PostgreSQL 17.12 (Debian 17.12-1.pgdg13+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+(1 row)
+
+Timing is on.
+SELECT 1000
+Time: 2.439 ms
+SELECT 2000
+Time: 1.208 ms
+ANALYZE
+Time: 1.278 ms
+ANALYZE
+Time: 0.776 ms
+BEFORE INDEX: one account activity and running total
+                                                                 QUERY PLAN                                                                 
+--------------------------------------------------------------------------------------------------------------------------------------------
+ WindowAgg  (cost=72.41..72.59 rows=10 width=61) (actual time=0.193..0.197 rows=10 loops=1)
+   Buffers: local hit=32
+   ->  Sort  (cost=72.39..72.42 rows=10 width=29) (actual time=0.181..0.182 rows=10 loops=1)
+         Sort Key: t.created_at, t.transaction_id
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: local hit=32
+         ->  Hash Join  (cost=41.12..72.22 rows=10 width=29) (actual time=0.067..0.178 rows=10 loops=1)
+               Hash Cond: (t.transaction_id = e.transaction_id)
+               Buffers: local hit=32
+               ->  Seq Scan on benchmark_transactions t  (cost=0.00..26.00 rows=1000 width=24) (actual time=0.003..0.055 rows=1000 loops=1)
+                     Buffers: local hit=16
+               ->  Hash  (cost=41.00..41.00 rows=10 width=13) (actual time=0.053..0.053 rows=10 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: local hit=16
+                     ->  Seq Scan on benchmark_entries e  (cost=0.00..41.00 rows=10 width=13) (actual time=0.006..0.050 rows=10 loops=1)
+                           Filter: (account_id = 1)
+                           Rows Removed by Filter: 1990
+                           Buffers: local hit=16
+ Planning:
+   Buffers: shared hit=51
+ Planning Time: 0.093 ms
+ Execution Time: 0.215 ms
+(22 rows)
+
+Time: 0.593 ms
+CREATE INDEX
+Time: 0.778 ms
+ANALYZE
+Time: 0.759 ms
+AFTER INDEX: same account activity and running total
+                                                                                 QUERY PLAN                                                                                 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ WindowAgg  (cost=50.92..51.10 rows=10 width=61) (actual time=0.121..0.125 rows=10 loops=1)
+   Buffers: shared hit=3, local hit=24 read=2
+   ->  Sort  (cost=50.90..50.93 rows=10 width=29) (actual time=0.116..0.117 rows=10 loops=1)
+         Sort Key: t.created_at, t.transaction_id
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=3, local hit=24 read=2
+         ->  Hash Join  (cost=19.63..50.73 rows=10 width=29) (actual time=0.047..0.113 rows=10 loops=1)
+               Hash Cond: (t.transaction_id = e.transaction_id)
+               Buffers: shared hit=3, local hit=24 read=2
+               ->  Seq Scan on benchmark_transactions t  (cost=0.00..26.00 rows=1000 width=24) (actual time=0.003..0.039 rows=1000 loops=1)
+                     Buffers: local hit=16
+               ->  Hash  (cost=19.51..19.51 rows=10 width=13) (actual time=0.033..0.033 rows=10 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=3, local hit=8 read=2
+                     ->  Bitmap Heap Scan on benchmark_entries e  (cost=4.36..19.51 rows=10 width=13) (actual time=0.027..0.030 rows=10 loops=1)
+                           Recheck Cond: (account_id = 1)
+                           Heap Blocks: exact=8
+                           Buffers: shared hit=3, local hit=8 read=2
+                           ->  Bitmap Index Scan on benchmark_entries_account_transaction_idx  (cost=0.00..4.35 rows=10 width=0) (actual time=0.022..0.022 rows=10 loops=1)
+                                 Index Cond: (account_id = 1)
+                                 Buffers: shared hit=3, local read=2
+ Planning:
+   Buffers: shared hit=13, local read=1
+ Planning Time: 0.102 ms
+ Execution Time: 0.138 ms
+(25 rows)
+
+Time: 0.468 ms

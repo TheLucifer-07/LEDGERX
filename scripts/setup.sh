@@ -16,3 +16,4 @@ set +a
 
 docker compose up -d --wait db
 "$ROOT_DIR/scripts/migrate.sh"
+"$ROOT_DIR/scripts/seed.sh"
