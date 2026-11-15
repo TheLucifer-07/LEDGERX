@@ -10,8 +10,10 @@ desktop.ini
 *.log
 coverage/
 **/node_modules/
-/dashboard/dist/
-/dashboard-api/target/
+/frontend/dist/
+**/target/
+/backend/coverage/
+**/.vercel/
 *.dump
 *.dump.gz
 *.pgdump

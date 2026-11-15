@@ -17,20 +17,28 @@ services:
       retries: 30
       start_period: 3s
 
-  dashboard-api:
+  backend:
     build:
-      context: ./dashboard-api
+      context: ./backend
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-ledgerx}
-      SPRING_DATASOURCE_USERNAME: ledgerx_dashboard
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_DASHBOARD_PASSWORD:?Set POSTGRES_DASHBOARD_PASSWORD in .env}
-      DASHBOARD_CORS_ORIGIN: ${DASHBOARD_CORS_ORIGIN:-http://localhost:5174}
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 8080
+      DATABASE_URL: postgresql://ledgerx_dashboard:${POSTGRES_DASHBOARD_PASSWORD:?Set POSTGRES_DASHBOARD_PASSWORD in .env}@db:5432/${POSTGRES_DB:-ledgerx}
+      FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      LOG_LEVEL: info
     ports:
-      - "127.0.0.1:${LEDGERX_API_HOST_PORT:-18080}:8080"
+      - "127.0.0.1:${LEDGERX_API_HOST_PORT:-8080}:8080"
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
 
 volumes:
   ledgerx_data:

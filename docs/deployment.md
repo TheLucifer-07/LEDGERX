@@ -1,6 +1,6 @@
 # Deployment Guide
 
-LedgerX is a database engineering project. It does not include a public payment application, API, or customer-facing service. The hosted configuration described here is for a private learning or review environment using fictional records.
+LedgerX currently includes an independently installable React frontend and Express API for local development. The API is unauthenticated and read-only; it intentionally refuses production startup. No public deployment should be created until verified Supabase authentication, tenant isolation, workspace RLS, and the user-facing flows pass their security tests.
 
 ## Local Docker deployment
 
@@ -23,7 +23,7 @@ PostgreSQL 17 is exposed only on `127.0.0.1:55432`. Migrations are numbered and 
 
 Do not expose the database publicly to make this sample easier to reach. Restrict network ingress to a private subnet, VPN, or short-lived deployment runner. The repository contains no public payment endpoint.
 
-## Initialize roles and apply migrations
+## Initialize roles and apply database migrations
 
 Provide the connection string through your deployment platform's secret environment facility. Use `sslmode=verify-full` and the provider CA certificate, for example:
 
@@ -56,7 +56,7 @@ CREATE ROLE ledgerx_app LOGIN;
 GRANT ledgerx_runtime TO ledgerx_app;
 ```
 
-Set its credential out of band. `ledgerx_runtime` is `NOLOGIN` and should not own tables or receive direct financial-table write privileges. This project has no application service; the role is an example of the database boundary only.
+Set its credential out of band. `ledgerx_runtime` is `NOLOGIN` and should not own tables or receive direct financial-table write privileges. The current local API connects with the narrower read-only `ledgerx_dashboard` role. A future production API credential will be separate from the migration credential and will only be enabled after tenant authorization is verified.
 
 ## Connection security and restricted access
 

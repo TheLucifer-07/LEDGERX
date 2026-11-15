@@ -1,8 +1,8 @@
-# LedgerX Requirements Specification
+# LedgerX Requirements and Delivery Status
 
 ## Purpose and scope
 
-LedgerX is a PostgreSQL 17 learning project that demonstrates safe financial posting, double-entry accounting, idempotent requests, concurrency control, settlement matching, reconciliation, analytics, and measured query tuning. It uses fictional customers and accounts and stores no payment-card data or sensitive personal information. It is a database-only project: PostgreSQL/PL/pgSQL, Docker Compose, Bash, Git, and GitHub Actions CI. The database is the product; no API or application service is included.
+LedgerX keeps its PostgreSQL 17 financial engine as its source of truth and is being extended into a financial recordkeeping product for adults, students, families, and small businesses. The current implementation includes the database, a React/Vite dashboard, and a local-only Express read API. The remaining product phases add authentication, workspaces, tenant isolation, user-facing financial workflows, and controlled deployment. Existing local financial rows are not public demo data.
 
 ## Functional requirements
 
@@ -31,9 +31,16 @@ LedgerX is a PostgreSQL 17 learning project that demonstrates safe financial pos
 - Runtime roles cannot directly mutate financial state, projections, idempotency, or audit records; they call narrowly granted functions with fixed trusted search paths.
 - Settlement uses gross amounts, excludes fees/taxes/FX, matches at most one external row to one internal transaction, and preserves versioned reconciliation evidence.
 
-## Out of scope for the initial project
+## Product requirements not yet implemented
 
-Real payment rails, card numbers, authentication, APIs, UI, foreign-exchange conversion, tax/fee policy, chargeback networks, durable failed-request analytics, regulatory reporting, production high availability, and real personally identifying data. Any external statement is fabricated test data.
+- Supabase email/Google authentication, verified server identity, onboarding, and session management.
+- User and workspace tables, role permissions, invitations, record ownership, PostgreSQL RLS, and cross-tenant security tests.
+- Student, personal, family, and business workspace experiences; write forms for recording financial activity; budgets, savings, recurring records, and CSV import/export.
+- Public marketing routes and isolated, deterministic demo workspaces.
+- Gemini tools that use only authorized, workspace-scoped reporting data.
+- Vercel, Render, Supabase-hosted PostgreSQL, controlled deployment migrations, privacy workflows, and operational recovery procedures.
+
+Real payment rails, card numbers, money movement, lending, FX, tax filing, payment processing, and regulatory certification remain outside the V1 product scope. LedgerX is a financial recordkeeping and education project.
 
 ## Acceptance evidence (to be gathered during implementation)
 
