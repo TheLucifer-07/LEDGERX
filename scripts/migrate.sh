@@ -90,7 +90,8 @@ SQL
   # Role creation and grants need the migration connection's administrative
   # role. Database objects remain owned by ledgerx_owner as usual.
   if [[ "$version" != "0001_platform_roles" &&
-        "$version" != "0011_dashboard_read_only_access" ]]; then
+        "$version" != "0011_dashboard_read_only_access" &&
+        "$version" != "0014_workspace_api_reader" ]]; then
     printf 'SET LOCAL ROLE ledgerx_owner;\n' >>"$driver_file"
   fi
   cat "$migration_file" >>"$driver_file"

@@ -69,4 +69,26 @@ describe('health and read-only API shell', () => {
     const response = await request(app).get('/api/v1/health').set('Origin', 'http://localhost:5173').expect(200)
     expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173')
   })
+
+  it('allows the authorization and workspace headers used by the protected context route', async () => {
+    const { app } = setup()
+    const response = await request(app)
+      .options('/api/v1/workspace/context')
+      .set('Origin', 'http://localhost:5173')
+      .set('Access-Control-Request-Method', 'GET')
+      .set('Access-Control-Request-Headers', 'authorization,x-ledgerx-workspace-id')
+      .expect(204)
+    expect(response.headers['access-control-allow-headers']).toContain('X-LedgerX-Workspace-ID')
+  })
+
+  it('allows browser preflight for the authenticated workspace bootstrap POST', async () => {
+    const { app } = setup()
+    const response = await request(app)
+      .options('/api/v1/workspaces/bootstrap')
+      .set('Origin', 'http://localhost:5173')
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'authorization,content-type')
+      .expect(204)
+    expect(response.headers['access-control-allow-methods']).toContain('POST')
+  })
 })

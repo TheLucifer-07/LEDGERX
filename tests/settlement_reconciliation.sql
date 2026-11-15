@@ -75,7 +75,7 @@ SELECT (:'usd_batch_batch_id'::bigint = :'usd_batch_retry_batch_id'::bigint)
   \echo Duplicate batch creation returned its original batch.
 \else
   \echo Duplicate batch creation returned a different batch.
-  \quit 1
+  SELECT 1 / 0;
 \endif
 
 SELECT ledger.import_settlement_item(
@@ -92,7 +92,7 @@ SELECT (:'good_item_item_id'::bigint = :'good_item_retry_item_id'::bigint)
   \echo Duplicate statement import returned its original row.
 \else
   \echo Duplicate statement import returned a different row.
-  \quit 1
+  SELECT 1 / 0;
 \endif
 
 SELECT ledger.import_settlement_item(

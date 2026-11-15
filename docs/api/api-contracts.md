@@ -1,6 +1,6 @@
 # Current API contract
 
-This contract records the local read-only API that currently supports the PostgreSQL operations dashboard. It is not the final public API contract: user identity, workspace selection, and role authorization will be added before public deployment.
+This contract records the local read-only operations dashboard and optional authenticated workspace-context and workspace-bootstrap routes. Browser sign-in and onboarding screens are implemented but require real Supabase and API role configuration; authenticated financial reads remain future work.
 
 ## Routes
 
@@ -9,6 +9,8 @@ This contract records the local read-only API that currently supports the Postgr
 | GET | `/health/live` | — | `{ "status": "live" }` |
 | GET | `/health/ready` | — | `{ "status": "ready" }` or a generic 503 starting response |
 | GET | `/api/v1/health` | — | `{ "status": "ok" }` after a database probe |
+| GET | `/api/v1/workspace/context` | `X-LedgerX-Workspace-ID` header and Supabase bearer token | Authenticated membership role and selected workspace; available only when Supabase and the separate API database role are configured |
+| POST | `/api/v1/workspaces/bootstrap` | Supabase bearer token; JSON `{ "workspace_type": "student"|"personal"|"family"|"business", "workspace_name": string }` | `201` and the newly created owned workspace; `200` with the same workspace on a legitimate retry |
 | GET | `/api/v1/currencies` | — | `{ items: Currency[] }` |
 | GET | `/api/v1/dashboard/summary` | `from`, `to` | Transaction, volume-by-currency, account, settlement, integrity, and range summaries |
 | GET | `/api/v1/dashboard/transaction-volume` | `from`, `to` | `{ items: DailyVolume[] }` |
@@ -32,8 +34,8 @@ List responses use `{ items, page, size, total, pages }`; page numbers are zero-
 
 PostgreSQL `NUMERIC` values are serialized as decimal strings by `pg`, preserving exact values. The frontend formats them for display and converts chart values only at the visualization boundary. 64-bit database identifiers remain strings.
 
-The API uses parameterized queries. SQL sort identifiers are selected from fixed allowlists. The local API runs with the read-only `ledgerx_dashboard` database login and never calls a financial mutation function.
+The API uses parameterized queries. SQL sort identifiers are selected from fixed allowlists. Local dashboard routes run with the read-only `ledgerx_dashboard` login and never call a financial mutation function. The optional context and bootstrap routes use the separate `ledgerx_api` role, which has no financial mutation privileges. Bootstrap creates only an internal user mapping and one owned workspace; it cannot create financial records. Migration 0018 removes `ledger.audit_integrity()` from the API role because that security-definer routine scans across workspaces; the existing integrity route remains only part of the loopback local operator API.
 
 ## Authentication and deployment status
 
-The routes are currently unauthenticated and local-only. The backend rejects production startup until Supabase identity verification, membership checks, transaction-scoped workspace context, and RLS are available. Do not expose this API publicly in its current phase.
+The existing dashboard routes remain unauthenticated and loopback-only. The optional workspace routes verify a Supabase bearer JWT and use the separate API role. Context selection validates active membership in a read-only transaction; bootstrap is idempotent and writes only the user/workspace setup records through a narrowly granted database function. The routes are enabled only when `AUTH_DATABASE_URL` and `SUPABASE_URL` are configured together; the API database role must be provisioned separately. They are not yet applied to dashboard financial reads. The backend still rejects production startup while those product and deployment controls are incomplete. Do not expose the API publicly in its current phase.

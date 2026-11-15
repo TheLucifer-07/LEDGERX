@@ -3,17 +3,17 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { MotionConfig } from 'framer-motion'
 import App from './App.jsx'
-import { DashboardProvider } from './contexts/DashboardContext.jsx'
+import { AuthProvider } from './contexts/AuthContext.jsx'
 import './styles.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <MotionConfig reducedMotion="user">
-      <DashboardProvider>
+      <AuthProvider>
         <BrowserRouter>
           <App />
         </BrowserRouter>
-      </DashboardProvider>
+      </AuthProvider>
     </MotionConfig>
   </React.StrictMode>,
 )

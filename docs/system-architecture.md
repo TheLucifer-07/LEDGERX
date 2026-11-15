@@ -1,6 +1,6 @@
 # System architecture
 
-LedgerX's PostgreSQL 17 ledger remains the financial source of truth. The current local app has an independently installable React/Vite frontend and Node/Express read API. The API uses the restricted `ledgerx_dashboard` login; it does not post or alter financial records. It is unauthenticated and intentionally refuses production startup until Supabase authentication, workspace authorization, and PostgreSQL RLS are implemented.
+LedgerX's PostgreSQL 17 ledger remains the financial source of truth. The local app has an independently installable React/Vite frontend and Node/Express read API. The unauthenticated local dashboard uses the restricted `ledgerx_dashboard` login; it cannot post or alter financial records. PostgreSQL workspace ownership, composite foreign keys, and forced RLS are implemented. Optional API routes verify Supabase JWTs, check workspace membership, and create an idempotent starter workspace. They do not yet secure the dashboard's financial reads. Production startup remains disabled until the complete user-facing product and deployment safeguards are in place.
 
 ```mermaid
 flowchart LR
@@ -29,10 +29,11 @@ flowchart LR
     DB --- LedgerSchema
     External[Imported external statement records] -->|SQL import function| Statement
     Benchmark[Temporary synthetic tables] -. separate query-plan workload .-> DB
-    Auth[Supabase identity + workspace/RLS phase] -. production gate .-> API
+    Auth[Supabase JWT + selected workspace] -->|verified subject| API
+    API -->|transaction-local context + membership check| RLS[PostgreSQL RLS]
 ```
 
-Compose exposes PostgreSQL and the API on loopback host ports and keeps files in a named database volume. Local Compose uses `ledgerx_admin` to initialize and inspect the database; the API uses `ledgerx_dashboard`, whose default transactions are read-only. This is a learning setup, not a public deployment security model. Current local records have not been assigned to a workspace.
+Compose exposes PostgreSQL and the API on loopback host ports and keeps files in a named database volume. Local Compose uses `ledgerx_admin` to initialize and inspect the database; the current dashboard API uses `ledgerx_dashboard`, whose default transactions are read-only. Migration 0012 assigned existing rows to the private legacy workspace; the separate demo workspace is empty. Authenticated workspace requests are designed to use a dedicated restricted database role and transaction-local context, not the legacy dashboard login. This remains a learning setup, not a public deployment security model.
 
 ## Data flow
 
@@ -41,7 +42,7 @@ Compose exposes PostgreSQL and the API on loopback host ports and keeps files in
 3. SQL callers and database tests invoke a `ledger` posting function in a PostgreSQL transaction. It validates the request, claims its idempotency key, locks accounts, appends journal lines, and updates the balance projection atomically. The current web API has no write endpoint.
 4. Deferred checks validate final journal state when the caller commits. The audit table records relevant changes; posted journal entries remain immutable.
 5. Settlement statement rows are imported into their own tables. Reconciliation records matches and exception snapshots without rewriting ledger activity.
-6. The Express API runs parameterized queries and approved read-only views/functions for the dashboard. No user or workspace is established yet.
+6. The Express API runs parameterized queries and approved read-only views/functions for the local legacy dashboard. When explicitly configured, its optional workspace routes verify a Supabase JWT; context selection checks membership through `ledger.set_request_context`, and bootstrap calls a narrowly granted idempotent function. The React client provides the account and workspace setup screens. Full authenticated financial reads remain in progress, and no hosted identity configuration exists yet.
 
 Benchmarks use temporary tables in a separate `psql` session. They do not add synthetic rows to financial tables.
 

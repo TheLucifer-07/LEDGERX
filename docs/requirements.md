@@ -2,7 +2,7 @@
 
 ## Purpose and scope
 
-LedgerX keeps its PostgreSQL 17 financial engine as its source of truth and is being extended into a financial recordkeeping product for adults, students, families, and small businesses. The current implementation includes the database, a React/Vite dashboard, and a local-only Express read API. The remaining product phases add authentication, workspaces, tenant isolation, user-facing financial workflows, and controlled deployment. Existing local financial rows are not public demo data.
+LedgerX keeps its PostgreSQL 17 financial engine as its source of truth and is being extended into a financial recordkeeping product for adults, students, families, and small businesses. The current implementation includes the database, tenant-owned workspace schema and forced RLS, a public React/Vite landing and account setup flow, a development-only operator dashboard, a local Express read API, and optional verified-token workspace-context/bootstrap routes. Supabase configuration is absent, so the signup and workspace flow is not yet end-to-end runnable. Existing local financial rows are private legacy data, not public demo data.
 
 ## Functional requirements
 
@@ -31,12 +31,12 @@ LedgerX keeps its PostgreSQL 17 financial engine as its source of truth and is b
 - Runtime roles cannot directly mutate financial state, projections, idempotency, or audit records; they call narrowly granted functions with fixed trusted search paths.
 - Settlement uses gross amounts, excludes fees/taxes/FX, matches at most one external row to one internal transaction, and preserves versioned reconciliation evidence.
 
-## Product requirements not yet implemented
+## Product requirements in progress
 
-- Supabase email/Google authentication, verified server identity, onboarding, and session management.
-- User and workspace tables, role permissions, invitations, record ownership, PostgreSQL RLS, and cross-tenant security tests.
+- Configure a real Supabase project and verify email/Google sign-in, browser session management, account recovery, and a full end-to-end auth test. The account UI and test-key JWT/database membership boundary exist but are not configured against a hosted project.
+- Complete server-side adult attestation/privacy records, workspace switching, invitations, and authenticated financial read routes. Database user/workspace tables, role permissions, record ownership, composite tenant foreign keys, forced PostgreSQL RLS, and database-level cross-tenant tests are implemented.
 - Student, personal, family, and business workspace experiences; write forms for recording financial activity; budgets, savings, recurring records, and CSV import/export.
-- Public marketing routes and isolated, deterministic demo workspaces.
+- Isolated, deterministic demo workspaces. The public landing route is implemented without demo financial data.
 - Gemini tools that use only authorized, workspace-scoped reporting data.
 - Vercel, Render, Supabase-hosted PostgreSQL, controlled deployment migrations, privacy workflows, and operational recovery procedures.
 

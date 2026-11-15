@@ -12,10 +12,10 @@ describe('Sidebar navigation', () => {
   it('provides working links to each data view', () => {
     render(<MemoryRouter initialEntries={['/']}><Sidebar onClose={() => {}} /><Routes><Route path="*" element={<CurrentPath />} /></Routes></MemoryRouter>)
     const views = [
-      ['Overview', '/'], ['Transactions', '/transactions'], ['Accounts', '/accounts'],
-      ['Ledger explorer', '/ledger'], ['Refunds & reversals', '/refunds'],
-      ['Settlements', '/settlements'], ['Reconciliation', '/reconciliation'],
-      ['Integrity monitor', '/integrity'],
+      ['Overview', '/operations'], ['Transactions', '/operations/transactions'], ['Accounts', '/operations/accounts'],
+      ['Ledger explorer', '/operations/ledger'], ['Refunds & reversals', '/operations/refunds'],
+      ['Settlements', '/operations/settlements'], ['Reconciliation', '/operations/reconciliation'],
+      ['Integrity monitor', '/operations/integrity'],
     ]
     for (const [label, route] of views) {
       fireEvent.click(screen.getByRole('link', { name: label }))

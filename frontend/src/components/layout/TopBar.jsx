@@ -6,10 +6,10 @@ import { useApi } from '../../hooks/useApi.js'
 import { formatDateTime } from '../../utils/format.js'
 
 const sections = {
-  '/': ['Overview', 'Workspace / Overview'], '/transactions': ['Transactions', 'Workspace / Activity'],
-  '/accounts': ['Accounts', 'Workspace / Customers'], '/ledger': ['Ledger explorer', 'Workspace / Accounting'],
-  '/refunds': ['Refunds & reversals', 'Workspace / Adjustments'], '/settlements': ['Settlements', 'Workspace / External records'],
-  '/reconciliation': ['Reconciliation', 'Workspace / Matching'], '/integrity': ['Integrity monitor', 'Workspace / Controls'],
+  '/operations': ['Overview', 'Local operator / Overview'], '/operations/transactions': ['Transactions', 'Local operator / Activity'],
+  '/operations/accounts': ['Accounts', 'Local operator / Customers'], '/operations/ledger': ['Ledger explorer', 'Local operator / Accounting'],
+  '/operations/refunds': ['Refunds & reversals', 'Local operator / Adjustments'], '/operations/settlements': ['Settlements', 'Local operator / External records'],
+  '/operations/reconciliation': ['Reconciliation', 'Local operator / Matching'], '/operations/integrity': ['Integrity monitor', 'Local operator / Controls'],
 }
 
 export default function TopBar({ onMenu }) {
@@ -24,7 +24,7 @@ export default function TopBar({ onMenu }) {
 
   function submitSearch(event) {
     event.preventDefault()
-    if (term.trim()) navigate(`/transactions?search=${encodeURIComponent(term.trim())}`)
+    if (term.trim()) navigate(`/operations/transactions?search=${encodeURIComponent(term.trim())}`)
   }
 
   async function handleRefresh() {

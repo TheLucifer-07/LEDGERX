@@ -1,6 +1,6 @@
 # Deployment Guide
 
-LedgerX currently includes an independently installable React frontend and Express API for local development. The API is unauthenticated and read-only; it intentionally refuses production startup. No public deployment should be created until verified Supabase authentication, tenant isolation, workspace RLS, and the user-facing flows pass their security tests.
+LedgerX currently includes an independently installable React frontend and Express API for local development. PostgreSQL workspace RLS is installed and tested. The frontend has Supabase email/Google access screens and calls the optional JWT API routes for workspace setup, but no Supabase project is configured and existing dashboard reads are not authenticated. The backend intentionally refuses production startup. No public deployment should be created until the full authenticated product flow and deployment safeguards pass their security tests.
 
 ## Local Docker deployment
 
@@ -49,14 +49,13 @@ The first migration records its checksum and creates `ledgerx_owner` and `ledger
 
 `scripts/setup.sh` detects `LEDGERX_DATABASE_URL` and skips Docker startup, then applies migrations and reference data. The staged commands above make the role-membership boundary visible and reviewable.
 
-Create a separate application login through your secret management or provider tooling, then grant only the runtime group role:
+Create a separate application login through your secret management or provider tooling. Migrations 0014–0018 define `ledgerx_api` as a `NOLOGIN`, non-owner, non-superuser, `NOBYPASSRLS` role. It has approved read access, membership-context functions, and the single workspace-bootstrap function; it has no financial mutation privileges and cannot call the global integrity auditor. Migration 0016 revokes default `PUBLIC EXECUTE` and restores only explicit grants. Provision a login and credential out of band only after reviewing the intended hosted privileges. Do not grant the read-only API role to `ledgerx_runtime`.
 
 ```sql
-CREATE ROLE ledgerx_app LOGIN;
-GRANT ledgerx_runtime TO ledgerx_app;
+ALTER ROLE ledgerx_api WITH LOGIN PASSWORD '<secret supplied by your secret manager>';
 ```
 
-Set its credential out of band. `ledgerx_runtime` is `NOLOGIN` and should not own tables or receive direct financial-table write privileges. The current local API connects with the narrower read-only `ledgerx_dashboard` role. A future production API credential will be separate from the migration credential and will only be enabled after tenant authorization is verified.
+Set its credential out of band. `ledgerx_api` must remain non-owner, non-superuser, and `NOBYPASSRLS`. The current local dashboard connects with the separate legacy-only `ledgerx_dashboard` role. The `ledgerx_runtime` posting role is not granted to the read-only API. Production remains blocked until all user-facing routes use verified identity and workspace context.
 
 ## Connection security and restricted access
 

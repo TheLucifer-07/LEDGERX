@@ -24,5 +24,8 @@ docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db sh -eu -c "
   psql -X -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" <<'SQL'
 \\getenv dashboard_password POSTGRES_DASHBOARD_PASSWORD
 ALTER ROLE ledgerx_dashboard LOGIN PASSWORD :'dashboard_password';
+  -- This local read-only login is confined to the old development records.
+  -- Authenticated application sessions will use transaction-local context.
+  ALTER ROLE ledgerx_dashboard SET app.workspace_id = '00000000-0000-4000-8000-000000000001';
 SQL
 "

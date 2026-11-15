@@ -23,7 +23,7 @@ SELECT (:'deposit_txid'::bigint = :'deposit_retry_txid'::bigint) AS retry_same
   \echo Idempotent retry returned the original transaction.
 \else
   \echo Idempotent retry returned a different transaction.
-  \quit 1
+  SELECT 1 / 0;
 \endif
 
 SELECT ledger.withdraw(

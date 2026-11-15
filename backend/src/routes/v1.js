@@ -4,7 +4,7 @@ import {
 } from '../utils/query-validation.js'
 import { HttpError } from '../utils/http-error.js'
 
-export function createV1Router(reads) {
+export function createV1Router(reads, { workspaceContext, workspaceBootstrap } = {}) {
   const router = Router()
   const send = (method, options) => async (request, response) => response.json(await reads[method](options(request)))
   const dates = (request) => parseDateRange(request.query)
@@ -12,6 +12,8 @@ export function createV1Router(reads) {
   const page = (request, size = 20) => parsePage(request.query, { size })
 
   router.get('/health', async (_request, response) => response.json(await reads.health()))
+  if (workspaceContext) router.get('/workspace/context', workspaceContext)
+  if (workspaceBootstrap) router.post('/workspaces/bootstrap', workspaceBootstrap)
   router.get('/currencies', async (_request, response) => response.json(await reads.currencies()))
   router.get('/dashboard/summary', send('summary', dates))
   router.get('/dashboard/transaction-volume', send('transactionVolume', dates))

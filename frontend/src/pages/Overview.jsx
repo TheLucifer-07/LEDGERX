@@ -93,7 +93,7 @@ export default function Overview() {
     </div>
 
     <div className="dashboard-grid dashboard-grid-lower">
-      <Panel className="recent-panel"><SectionHeading title="Recent transactions" description="Latest recorded activity" action={<a className="inline-link" href="/transactions">View all <ArrowUpRight size={14} /></a>} />
+      <Panel className="recent-panel"><SectionHeading title="Recent transactions" description="Latest recorded activity" action={<a className="inline-link" href="/operations/transactions">View all <ArrowUpRight size={14} /></a>} />
         <DataTable loading={recent.loading} error={recent.error} rows={recent.data?.items || []} emptyTitle="No transactions yet" columns={[
           { key: 'transaction_ref', label: 'Reference', render: (value) => <span className="mono strong-text">{value}</span> },
           { key: 'transaction_type', label: 'Type', render: (value) => <span>{titleCase(value)}</span> },

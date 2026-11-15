@@ -12,8 +12,22 @@ set -a
 set +a
 
 "$ROOT_DIR/scripts/setup.sh"
-docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-  psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" \
+
+db_psql() {
+  local app_name="$1"
+  shift
+  if [[ -n "${LEDGERX_DATABASE_URL:-}" ]]; then
+    PGAPPNAME="$app_name" PGPASSWORD="${PGPASSWORD:-${POSTGRES_PASSWORD:-}}" \
+      psql -X -v ON_ERROR_STOP=1 "$LEDGERX_DATABASE_URL" "$@"
+  else
+    docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T \
+      -e "PGAPPNAME=$app_name" db \
+      psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" \
+        -d "${POSTGRES_DB:-ledgerx}" "$@"
+  fi
+}
+
+db_psql "ledgerx-prepare" -f /dev/stdin \
   < "$ROOT_DIR/tests/concurrency/prepare.sql"
 
 run_tag="$(date +%s)-$$"
@@ -56,10 +70,8 @@ trap cleanup EXIT
 psql_file() {
   local app_name="$1"
   local input_file="$2"
-  docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T \
-    -e "PGAPPNAME=$app_name" db \
-    psql -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$POSTGRES_USER" \
-      -d "${POSTGRES_DB:-ledgerx}" -v "run_scope=$run_scope" <"$input_file"
+  db_psql "$app_name" -v VERBOSITY=verbose -v "run_scope=$run_scope" \
+    -f /dev/stdin <"$input_file"
 }
 
 wait_for_query() {
@@ -67,8 +79,7 @@ wait_for_query() {
   local expected_query="$2"
   local attempt count
   for attempt in {1..50}; do
-    count="$(docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-      psql -X -At -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" \
+    count="$(db_psql "ledgerx-observer" -At \
       -c "SELECT count(*) FROM pg_stat_activity WHERE application_name = '$app_name' AND state = 'active' AND query LIKE '$expected_query'" \
       2>/dev/null | tr -d '\r')"
     if [[ "$count" == "1" ]]; then
@@ -83,14 +94,12 @@ wait_for_lock() {
   local app_name="$1"
   local attempt count
   for attempt in {1..50}; do
-    count="$(docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-      psql -X -At -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" \
+    count="$(db_psql "ledgerx-observer" -At \
       -c "SELECT count(*) FROM pg_stat_activity WHERE application_name = '$app_name' AND wait_event_type = 'Lock'" \
       2>/dev/null | tr -d '\r')"
     if [[ "$count" == "1" ]]; then
       local wait_event
-      wait_event="$(docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-        psql -X -At -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" \
+      wait_event="$(db_psql "ledgerx-observer" -At \
         -c "SELECT wait_event_type || '/' || wait_event FROM pg_stat_activity WHERE application_name = '$app_name' AND wait_event_type = 'Lock' LIMIT 1" \
         2>/dev/null | tr -d '\r')"
       printf 'Observed PostgreSQL lock wait for %s: %s.\n' "$app_name" "$wait_event"
@@ -187,8 +196,7 @@ if (( withdraw_a_status != 0 || withdraw_b_status == 0 )) \
   printf 'Withdrawal loser did not fail with the expected insufficient-balance error.\n' >&2
   exit 1
 fi
-withdrawal_evidence="$(docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-  psql -X -At -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" \
+withdrawal_evidence="$(db_psql "ledgerx-observer" -At \
   -c "SELECT
         (SELECT count(*) FROM ledger.idempotency_keys WHERE scope = '$run_scope' AND idempotency_key = 'withdraw-a' AND transaction_id IS NOT NULL) || ',' ||
         (SELECT count(*) FROM ledger.idempotency_keys WHERE scope = '$run_scope' AND idempotency_key = 'withdraw-b') || ',' ||
@@ -202,8 +210,7 @@ printf 'Simultaneous withdrawals: one succeeded and one was rejected for insuffi
 
 run_expected_contention "reverse-transfer" "ledgerx-transfer-a-$run_tag" \
   "ledgerx-transfer-b-$run_tag" transfer_a.sql transfer_b.sql no
-transfer_evidence="$(docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-  psql -X -At -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" \
+transfer_evidence="$(db_psql "ledgerx-observer" -At \
   -c "SELECT (SELECT count(*) FROM ledger.transactions t JOIN ledger.idempotency_keys ik USING (transaction_id) WHERE ik.scope = '$run_scope' AND ik.idempotency_key IN ('reverse-a-to-b','reverse-b-to-a') AND t.transaction_type='transfer' AND t.status='posted' AND t.amount=80.00) || ',' || (SELECT count(*) FROM ledger.ledger_entries le JOIN ledger.idempotency_keys ik ON ik.transaction_id=le.transaction_id WHERE ik.scope='$run_scope' AND ik.idempotency_key IN ('reverse-a-to-b','reverse-b-to-a')) || ',' || (SELECT string_agg(a.account_code || '=' || b.posted_balance::text, ',' ORDER BY a.account_code) FROM ledger.accounts a JOIN ledger.account_balances b USING(account_id) WHERE a.account_code IN ('WALLET-1001-USD','WALLET-1002-USD'))")"
 [[ "$transfer_evidence" == "2,4,WALLET-1001-USD=100.0000,WALLET-1002-USD=100.0000" ]] || {
   printf 'Reverse-transfer ledger/balance evidence was invalid: %s\n' "$transfer_evidence" >&2; exit 1;
@@ -211,15 +218,12 @@ transfer_evidence="$(docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db
 
 run_expected_contention "same-key" "ledgerx-idempotency-a-$run_tag" \
   "ledgerx-idempotency-b-$run_tag" idempotency_a.sql idempotency_b.sql no
-same_key_count="$(docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-  psql -X -At -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" \
+same_key_count="$(db_psql "ledgerx-observer" -At \
   -c "SELECT count(*) FROM ledger.transactions AS t JOIN ledger.idempotency_keys AS ik USING (transaction_id) WHERE ik.scope = '$run_scope' AND ik.idempotency_key = 'same-key-transfer' AND t.request_reference = 'concurrent-same-key'")"
 [[ "$same_key_count" == 1 ]] || { printf 'Same-key requests created %s transactions.\n' "$same_key_count" >&2; exit 1; }
-same_key_evidence="$(docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-  psql -X -At -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" \
+same_key_evidence="$(db_psql "ledgerx-observer" -At \
   -c "SELECT count(DISTINCT ik.transaction_id) || ',' || count(DISTINCT le.ledger_entry_id) || ',' || (SELECT string_agg(a.account_code || '=' || b.posted_balance::text, ',' ORDER BY a.account_code) FROM ledger.accounts a JOIN ledger.account_balances b USING(account_id) WHERE a.account_code IN ('WALLET-1001-USD','WALLET-1002-USD')) FROM ledger.idempotency_keys ik JOIN ledger.ledger_entries le ON le.transaction_id=ik.transaction_id WHERE ik.scope='$run_scope' AND ik.idempotency_key='same-key-transfer'")"
-same_key_transaction_id="$(docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-  psql -X -At -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" \
+same_key_transaction_id="$(db_psql "ledgerx-observer" -At \
   -c "SELECT transaction_id FROM ledger.idempotency_keys WHERE scope='$run_scope' AND idempotency_key='same-key-transfer'")"
 [[ "$same_key_evidence" == "1,2,WALLET-1001-USD=90.0000,WALLET-1002-USD=110.0000" ]] \
   && grep -Eq "^[[:space:]]+$same_key_transaction_id[[:space:]]*$" "$temp_dir/same-key-a.log" \
@@ -236,12 +240,10 @@ psql_file "ledgerx-create-capture-$run_tag" \
 
 run_expected_contention "refund-cap" "ledgerx-refund-a-$run_tag" \
   "ledgerx-refund-b-$run_tag" refund_a.sql refund_b.sql yes 23514 'refund total'
-refund_total="$(docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-  psql -X -At -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" \
+refund_total="$(db_psql "ledgerx-observer" -At \
   -c "SELECT COALESCE(sum(r.amount) FILTER (WHERE refund_tx.status = 'posted'), 0) FROM ledger.refunds r JOIN ledger.transactions refund_tx ON refund_tx.transaction_id=r.refund_transaction_id WHERE r.original_transaction_id = (SELECT transaction_id FROM ledger.idempotency_keys WHERE scope = '$run_scope' AND idempotency_key = 'capture-100')")"
 [[ "$refund_total" == 70.0000 ]] || { printf 'Competing refund total expected 70.0000, got %s.\n' "$refund_total" >&2; exit 1; }
-refund_evidence="$(docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-  psql -X -At -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" \
+refund_evidence="$(db_psql "ledgerx-observer" -At \
   -c "SELECT (SELECT count(*) FROM ledger.refunds r JOIN ledger.transactions tx ON tx.transaction_id=r.refund_transaction_id WHERE r.original_transaction_id=(SELECT transaction_id FROM ledger.idempotency_keys WHERE scope='$run_scope' AND idempotency_key='capture-100') AND tx.status='posted') || ',' || (SELECT count(*) FROM ledger.idempotency_keys WHERE scope='$run_scope' AND idempotency_key='refund-70' AND transaction_id IS NOT NULL) || ',' || (SELECT count(*) FROM ledger.idempotency_keys WHERE scope='$run_scope' AND idempotency_key='refund-50') || ',' || (SELECT count(*) FROM ledger.ledger_entries le JOIN ledger.idempotency_keys ik ON ik.transaction_id=le.transaction_id WHERE ik.scope='$run_scope' AND ik.idempotency_key='refund-70')")"
 [[ "$refund_evidence" == "1,1,0,2" ]] || {
   printf 'Refund-cap ledger evidence was invalid: %s\n' "$refund_evidence" >&2; exit 1;
@@ -251,8 +253,7 @@ psql_file "ledgerx-restore-$run_tag" "$ROOT_DIR/tests/concurrency/restore.sql" \
   >"$temp_dir/restore.log" 2>&1
 cleanup_enabled=no
 
-final_balances="$(docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T db \
-  psql -X -At -U "$POSTGRES_USER" -d "${POSTGRES_DB:-ledgerx}" \
+final_balances="$(db_psql "ledgerx-observer" -At \
   -c "SELECT string_agg(a.account_code || '=' || b.posted_balance::text, ',' ORDER BY a.account_code) FROM ledger.accounts AS a JOIN ledger.account_balances AS b USING (account_id) WHERE a.account_code IN ('WALLET-1001-USD', 'WALLET-1002-USD', 'WALLET-1003-USD', 'MERCHANT-2001-USD')")"
 if [[ "$final_balances" != "MERCHANT-2001-USD=0.0000,WALLET-1001-USD=100.0000,WALLET-1002-USD=100.0000,WALLET-1003-USD=100.0000" ]]; then
   printf 'Concurrency fixture balances were not restored: %s\n' "$final_balances" >&2

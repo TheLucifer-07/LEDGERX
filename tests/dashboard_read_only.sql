@@ -22,6 +22,9 @@ BEGIN
   IF pg_catalog.has_table_privilege('ledgerx_dashboard', 'ledger.idempotency_keys', 'SELECT') THEN
     RAISE EXCEPTION 'dashboard role can read idempotency keys';
   END IF;
+  IF pg_catalog.has_table_privilege('ledgerx_dashboard', 'ledger.workspace_memberships', 'SELECT') THEN
+    RAISE EXCEPTION 'dashboard role can read workspace membership rows';
+  END IF;
   IF NOT pg_catalog.has_function_privilege(
        'ledgerx_dashboard', 'ledger.audit_integrity()', 'EXECUTE'
      ) THEN
@@ -35,6 +38,15 @@ BEGIN
        'ledgerx_dashboard', 'ledger.rebuild_account_balances()'::regprocedure, 'EXECUTE'
      ) THEN
     RAISE EXCEPTION 'dashboard role can execute a financial mutation';
+  END IF;
+  IF pg_catalog.has_function_privilege(
+       'ledgerx_dashboard', 'ledger.register_authenticated_user(uuid)', 'EXECUTE'
+     ) OR pg_catalog.has_function_privilege(
+       'ledgerx_dashboard', 'ledger.create_workspace(text,text,text,text)', 'EXECUTE'
+     ) OR pg_catalog.has_function_privilege(
+       'ledgerx_dashboard', 'ledger.set_request_context(uuid,uuid)', 'EXECUTE'
+     ) THEN
+    RAISE EXCEPTION 'dashboard role can execute a workspace security-definer function';
   END IF;
 END
 $assertions$;

@@ -25,6 +25,9 @@ services:
       HOST: 0.0.0.0
       PORT: 8080
       DATABASE_URL: postgresql://ledgerx_dashboard:${POSTGRES_DASHBOARD_PASSWORD:?Set POSTGRES_DASHBOARD_PASSWORD in .env}@db:5432/${POSTGRES_DB:-ledgerx}
+      AUTH_DATABASE_URL: ${AUTH_DATABASE_URL:-}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_JWKS_URL: ${SUPABASE_JWKS_URL:-}
       FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       LOG_LEVEL: info
     ports:

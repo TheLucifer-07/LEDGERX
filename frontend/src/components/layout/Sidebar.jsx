@@ -2,14 +2,14 @@ import { NavLink } from 'react-router-dom'
 import { Activity, ArrowLeftRight, BookOpenText, CircleDollarSign, CreditCard, Gauge, GitCompareArrows, Layers3, ShieldCheck, X } from 'lucide-react'
 
 const links = [
-  { to: '/', label: 'Overview', icon: Gauge, end: true },
-  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
-  { to: '/accounts', label: 'Accounts', icon: CreditCard },
-  { to: '/ledger', label: 'Ledger explorer', icon: BookOpenText },
-  { to: '/refunds', label: 'Refunds & reversals', icon: CircleDollarSign },
-  { to: '/settlements', label: 'Settlements', icon: Layers3 },
-  { to: '/reconciliation', label: 'Reconciliation', icon: GitCompareArrows },
-  { to: '/integrity', label: 'Integrity monitor', icon: ShieldCheck },
+  { to: '/operations', label: 'Overview', icon: Gauge, end: true },
+  { to: '/operations/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { to: '/operations/accounts', label: 'Accounts', icon: CreditCard },
+  { to: '/operations/ledger', label: 'Ledger explorer', icon: BookOpenText },
+  { to: '/operations/refunds', label: 'Refunds & reversals', icon: CircleDollarSign },
+  { to: '/operations/settlements', label: 'Settlements', icon: Layers3 },
+  { to: '/operations/reconciliation', label: 'Reconciliation', icon: GitCompareArrows },
+  { to: '/operations/integrity', label: 'Integrity monitor', icon: ShieldCheck },
 ]
 
 export default function Sidebar({ open, onClose }) {

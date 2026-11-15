@@ -4,7 +4,7 @@ The repository is being changed from a database-only showcase into an independen
 
 | Directory | Current responsibility | Local command |
 |---|---|---|
-| `frontend/` | Existing React/Vite PostgreSQL operations dashboard; SPA configuration for Vercel | `npm ci && npm run dev` |
+| `frontend/` | Public React/Vite landing, Supabase account and workspace setup screens, plus a development-only PostgreSQL operator dashboard | `npm ci && npm run dev` |
 | `backend/` | Express 5 read-only API using `pg`; local health and current dashboard read routes | `npm ci && npm run dev` |
 | `database/` | Numbered PostgreSQL migrations and SQL implementation | `scripts/migrate.sh` from the root |
 | `seeds/` | Fictional reference records for the local database | `scripts/seed.sh` from the root |
@@ -13,6 +13,6 @@ The repository is being changed from a database-only showcase into an independen
 
 The previous Spring Boot dashboard API was translated to the Node service and stopped. Its source remains in Git history. PostgreSQL owns financial rules; the current API uses a restricted read-only role and does not calculate or mutate balances.
 
-The Node API currently has no Supabase authentication, workspace authorization, or tenant context. `backend/src/config/env.js` refuses production startup until that security work exists. This is an intentional deployment gate, not a completed security claim.
+Migrations 0012–0013 add app-user mapping, workspaces, memberships, a role-permission matrix, tenant ownership, composite foreign keys, and forced RLS. Migrations 0014–0018 add a separate `ledgerx_api` role, secure/idempotent workspace bootstrap, restricted security-function grants, and removal of the cross-workspace auditor from API privileges. The Node API has optional Supabase JWT context and workspace-bootstrap routes. The React app has public landing, sign-in/signup, email callback, and onboarding screens, but no real Supabase setup is configured and dashboard reads are not tenant-scoped. `backend/src/config/env.js` therefore continues to refuse production startup.
 
-The current legacy records have no workspace owner yet. Before public demo or authenticated access is enabled, a numbered migration must assign them to an inaccessible legacy workspace and create a separate synthetic demo workspace. Do not expose the existing local records as demo content.
+Existing local records are assigned to the private legacy workspace. A separate demo workspace exists but is empty and has no public read route. Do not expose legacy records as demo content.

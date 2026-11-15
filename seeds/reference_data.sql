@@ -14,7 +14,7 @@ VALUES
   ('CUST-1002', 'Jordan Example', 'active'),
   ('CUST-1003', 'Morgan Example', 'active'),
   ('MERCHANT-2001', 'Northstar Demo Merchant', 'active')
-ON CONFLICT (customer_ref) DO NOTHING;
+ON CONFLICT (workspace_id, customer_ref) DO NOTHING;
 
 INSERT INTO ledger.accounts (
   customer_id, account_code, account_kind, normal_side, currency_code, status
@@ -61,7 +61,7 @@ VALUES
    'WALLET-SCHEMA-USD', 'customer_wallet', 'credit', 'USD', 'open'),
   ((SELECT customer_id FROM ledger.customers WHERE customer_ref = 'CUST-1003'),
    'WALLET-REPORTS-USD', 'customer_wallet', 'credit', 'USD', 'open')
-ON CONFLICT (account_code) DO NOTHING;
+ON CONFLICT (workspace_id, account_code) DO NOTHING;
 
 INSERT INTO ledger.account_balances (account_id)
 SELECT a.account_id
