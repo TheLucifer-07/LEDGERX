@@ -1,0 +1,67 @@
+# RLS diagnosis — PostgreSQL 17.5 on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0, 64-bit
+# migrations applied: 001,002,003,004,005,006,007,008,009
+# dataset: dataset: workspaces=12 entries_per_workspace=10000 seed=ledgerx  (generated+verified+analyzed in 7s)
+# context: personal workspace owner (workspace df9d0752-93b4-0ead-d58b-edfd4a62f890)
+
+== D1. Policy predicate currently on lx.journal_lines
+(lx.has_ws_access(workspace_id) AND lx.can_see_private(private_owner_id))
+
+== D2. Plan under RLS (runtime role + verified context) — Q1 workspace totals
+Aggregate  (cost=70272.96..70272.97 rows=1 width=72) (actual time=3766.885..3766.885 rows=1 loops=1)
+  Buffers: shared hit=43725
+  ->  Seq Scan on journal_lines  (cost=0.00..69695.00 rows=77061 width=8) (actual time=128.472..3758.851 rows=20000 loops=1)
+        Filter: (((private_owner_id IS NULL) OR (private_owner_id = CASE WHEN (current_setting('lx.user_id'::text, true) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) THEN (current_setting('lx.user_id'::text, true))::uuid ELSE NULL::uuid END)) AND lx.has_ws_access(workspace_id))
+        Rows Removed by Filter: 220000
+        Buffers: shared hit=43725
+Planning:
+  Buffers: shared hit=119
+Planning Time: 0.253 ms
+Execution Time: 3766.909 ms
+
+== D3. Same question without RLS, explicit workspace filter (what the indexes can do)
+Aggregate  (cost=5096.21..5096.22 rows=1 width=72) (actual time=7.646..7.647 rows=1 loops=1)
+  Buffers: shared hit=529
+  ->  Bitmap Heap Scan on journal_lines  (cost=1008.57..4948.97 rows=19632 width=8) (actual time=2.103..4.439 rows=20000 loops=1)
+        Recheck Cond: (workspace_id = 'df9d0752-93b4-0ead-d58b-edfd4a62f890'::uuid)
+        Heap Blocks: exact=307
+        Buffers: shared hit=529
+        ->  Bitmap Index Scan on journal_lines_account_idx  (cost=0.00..1003.66 rows=19632 width=0) (actual time=2.040..2.041 rows=20000 loops=1)
+              Index Cond: (workspace_id = 'df9d0752-93b4-0ead-d58b-edfd4a62f890'::uuid)
+              Buffers: shared hit=222
+Planning:
+  Buffers: shared hit=18
+Planning Time: 0.283 ms
+Execution Time: 7.695 ms
+
+== D4. How often is each helper function called for ONE execution of Q1?
+has_ws_access|231432
+is_member_of|20000
+rows in journal_lines (all tenants): 240000
+
+== D5. HYPOTHESIS TEST (rolled back): evaluate the context once per query via sub-selects (InitPlans)
+Aggregate  (cost=5092.44..5092.45 rows=1 width=72) (actual time=6.385..6.388 rows=1 loops=1)
+  Buffers: shared hit=531
+  InitPlan 1
+    ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.011..0.012 rows=1 loops=1)
+  InitPlan 3
+    ->  Result  (cost=0.02..0.28 rows=1 width=1) (actual time=0.305..0.305 rows=1 loops=1)
+          Buffers: shared hit=2
+          InitPlan 2
+            ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.011..0.012 rows=1 loops=1)
+  InitPlan 4
+    ->  Result  (cost=0.00..0.02 rows=1 width=16) (never executed)
+  ->  Bitmap Heap Scan on journal_lines  (cost=1024.83..5019.83 rows=9637 width=8) (actual time=1.553..4.496 rows=20000 loops=1)
+        Recheck Cond: (workspace_id = (InitPlan 1).col1)
+        Filter: ((InitPlan 3).col1 AND ((private_owner_id IS NULL) OR (private_owner_id = (InitPlan 4).col1)))
+        Heap Blocks: exact=307
+        Buffers: shared hit=531
+        ->  Bitmap Index Scan on journal_lines_account_idx  (cost=0.00..1022.42 rows=20000 width=0) (actual time=1.213..1.213 rows=20000 loops=1)
+              Index Cond: (workspace_id = (InitPlan 1).col1)
+              Buffers: shared hit=222
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.178 ms
+Execution Time: 6.418 ms
+
+== D6. Policy after the experiment (must be unchanged: the experiment was rolled back)
+(lx.has_ws_access(workspace_id) AND lx.can_see_private(private_owner_id))

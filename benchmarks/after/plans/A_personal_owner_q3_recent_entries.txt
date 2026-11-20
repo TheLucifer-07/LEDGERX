@@ -1,0 +1,17 @@
+Limit  (cost=0.72..90.88 rows=50 width=36) (actual time=0.265..0.294 rows=50 loops=1)
+  Buffers: shared hit=55
+  InitPlan 1
+    ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.007..0.007 rows=1 loops=1)
+  InitPlan 2
+    ->  Result  (cost=0.00..0.26 rows=1 width=1) (actual time=0.249..0.249 rows=1 loops=1)
+          Buffers: shared hit=2
+  InitPlan 3
+    ->  Result  (cost=0.00..0.02 rows=1 width=16) (never executed)
+  ->  Index Scan using journal_entries_ws_date_idx on journal_entries  (cost=0.42..8700.23 rows=4825 width=36) (actual time=0.265..0.289 rows=50 loops=1)
+        Index Cond: (workspace_id = (InitPlan 1).col1)
+        Filter: ((InitPlan 2).col1 AND ((private_owner_id IS NULL) OR (private_owner_id = (InitPlan 3).col1)))
+        Buffers: shared hit=55
+Planning:
+  Buffers: shared hit=1
+Planning Time: 0.070 ms
+Execution Time: 0.307 ms

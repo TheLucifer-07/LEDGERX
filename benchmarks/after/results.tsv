@@ -1,0 +1,16 @@
+context	query	runs	median_ms	min_ms	max_ms	shared_hit	shared_read	scans
+A_personal_owner	q1_workspace_totals	5	6.521	6.478	6.897	531	0	Bitmap Heap Scan x1; Index Scan x1
+B_family_member	q1_workspace_totals	5	9.508	9.334	10.346	533	0	Bitmap Heap Scan x1; Index Scan x1
+A_personal_owner	q2_account_ledger	5	13.333	11.716	16.230	21050	0	Bitmap Heap Scan x1; Index Scan x2; Seq Scan x1
+B_family_member	q2_account_ledger	5	10.524	10.337	11.097	18198	0	Bitmap Heap Scan x1; Index Scan x2; Seq Scan x1
+A_personal_owner	q3_recent_entries	5	0.299	0.268	0.332	55	0	Index Scan x1
+B_family_member	q3_recent_entries	5	0.350	0.300	0.439	53	0	Index Scan x1
+A_personal_owner	q4_monthly_cashflow	5	32.524	31.550	32.848	40657	0	Bitmap Heap Scan x1; Index Scan x2; Seq Scan x1
+B_family_member	q4_monthly_cashflow	5	33.735	33.602	33.895	41460	0	Bitmap Heap Scan x1; Index Scan x2; Seq Scan x1
+A_personal_owner	q5_account_balances	5	0.520	0.501	0.538	8	0	Seq Scan x2
+B_family_member	q5_account_balances	5	0.622	0.588	0.641	8	0	Seq Scan x2
+A_personal_owner	q6_directory	5	0.730	0.659	0.901	8	0	Seq Scan x3
+B_family_member	q6_directory	5	1.012	0.986	1.028	10	0	Seq Scan x3
+A_reference_noRLS	q1_workspace_totals	5	5.570	5.538	6.090	529	0	Bitmap Heap Scan x1; Index Scan x1
+A_reference_noRLS	q2_account_ledger	5	11.250	10.914	11.379	21042	0	Bitmap Heap Scan x1; Index Scan x2
+A_reference_noRLS	q3_recent_entries	5	0.027	0.026	0.100	53	0	Index Scan x1

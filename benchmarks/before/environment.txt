@@ -1,0 +1,24 @@
+label: before   date: 2026-11-20T07:03:28Z
+postgres: PostgreSQL 17.5 on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0, 64-bit
+cpu: Intel(R) Xeon(R) Processor @ 2.10GHz  cores: 1  mem: 3992 MB
+os: Ubuntu 24.04.5 LTS  kernel: 6.18.44-fc-v726
+shared_buffers = 128MB
+work_mem = 4MB
+effective_cache_size = 4GB
+max_parallel_workers_per_gather = 2
+random_page_cost = 4
+jit = on
+migrations applied: 001,002,003,004,005,006,007,008,009
+method: warm cache; 1 discarded warm-up + 5 timed runs per (context, query); EXPLAIN (ANALYZE, BUFFERS); role=ledgerx_runtime; parallel query left at server default
+dataset: workspaces=12 entries_per_workspace=10000 seed=ledgerx  (generated+verified+analyzed in 7s)
+rows workspaces 12
+rows users 18
+rows account_balances 117
+rows accounts 141
+rows journal_entries 120000
+rows journal_lines 240000
+fingerprint md5(all lines, ordered by id) f901bd13b2cd0e6cf7c6f4135b25508d
+size account_balances 64 kB
+size accounts 136 kB
+size journal_entries 38 MB
+size journal_lines 78 MB

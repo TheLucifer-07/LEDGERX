@@ -1,0 +1,147 @@
+== 1. PostgreSQL version and roles
+                                               version                                               
+-----------------------------------------------------------------------------------------------------
+ PostgreSQL 17.5 on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0, 64-bit
+(1 row)
+
+     rolname      | super | bypassrls | createrole | createdb | login 
+------------------+-------+-----------+------------+----------+-------
+ ledgerx_migrator | f     | f         | f          | f        | t
+ ledgerx_runtime  | f     | f         | f          | f        | t
+(2 rows)
+
+     rolname     |                            setconfig                            
+-----------------+-----------------------------------------------------------------
+ ledgerx_runtime | {statement_timeout=15s,idle_in_transaction_session_timeout=20s}
+(1 row)
+
+== 2. PUBLIC privileges (must be empty)
+ object | name | privilege_type 
+--------+------+----------------
+(0 rows)
+
+== 3. Ownership of lx objects
+      owner       |   kind   | count 
+------------------+----------+-------
+ ledgerx_migrator | index    |    29
+ ledgerx_migrator | sequence |     2
+ ledgerx_migrator | table    |    12
+ ledgerx_migrator | view     |     3
+(4 rows)
+
+      owner       |   kind   | count 
+------------------+----------+-------
+ ledgerx_migrator | function |    30
+(1 row)
+
+== 4. Runtime role: table/view privileges
+      relation      | k |    SELECT    | ins | upd | del | rls 
+--------------------+---+--------------+-----+-----+-----+-----
+ account_balances   | r | table-wide   | f   | f   | f   | t
+ accounts           | r | table-wide   | f   | f   | f   | t
+ audit_events       | r | table-wide   | f   | f   | f   | t
+ currencies         | r | table-wide   | f   | f   | f   | f
+ idempotency_keys   | r | none         | f   | f   | f   | t
+ invitations        | r | column-level | f   | f   | f   | t
+ journal_entries    | r | table-wide   | f   | f   | f   | t
+ journal_lines      | r | table-wide   | f   | f   | f   | t
+ schema_migrations  | r | none         | f   | f   | f   | f
+ users              | r | column-level | f   | f   | f   | t
+ v_account_balances | v | table-wide   | f   | f   | f   | f
+ v_category_spend   | v | table-wide   | f   | f   | f   | f
+ v_monthly_cashflow | v | table-wide   | f   | f   | f   | f
+ workspace_members  | r | table-wide   | f   | f   | f   | t
+ workspaces         | r | table-wide   | f   | f   | f   | t
+(15 rows)
+
+== 5. Runtime role: executable functions
+         function         | definer | vol 
+--------------------------+---------+-----
+ can_see_private          | f       | s
+ create_account           | t       | v
+ create_invitation        | t       | v
+ create_workspace         | t       | v
+ ctx_coworker_ids         | t       | s
+ ctx_has_access           | t       | s
+ ctx_role                 | t       | s
+ ctx_user                 | f       | s
+ ctx_workspace            | f       | s
+ has_ws_access            | t       | s
+ is_member_of             | t       | s
+ my_workspace_ids         | t       | s
+ post_journal_entry       | t       | v
+ provision_user           | t       | v
+ rebuild_account_balances | t       | v
+ resolve_user             | t       | s
+ reverse_journal_entry    | t       | v
+ schema_version           | t       | s
+ set_context              | t       | v
+ shares_workspace         | t       | s
+ verify_account_balances  | t       | v
+(21 rows)
+
+== 6. SECURITY DEFINER functions: owner and search_path
+         function         |      owner       |           search_path           
+--------------------------+------------------+---------------------------------
+ _audit                   | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ _claim_idempotency       | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ _require_ws              | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ create_account           | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ create_invitation        | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ create_workspace         | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ ctx_coworker_ids         | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ ctx_has_access           | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ ctx_role                 | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ has_ws_access            | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ is_member_of             | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ my_workspace_ids         | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ post_journal_entry       | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ provision_user           | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ rebuild_account_balances | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ resolve_user             | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ reverse_journal_entry    | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ schema_version           | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ seed_chart               | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ set_context              | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ shares_workspace         | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ trg_entry_integrity      | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ trg_line_after_insert    | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ trg_line_before_insert   | ledgerx_migrator | search_path=pg_catalog, pg_temp
+ verify_account_balances  | ledgerx_migrator | search_path=pg_catalog, pg_temp
+(25 rows)
+
+-- non-definer functions without a pinned search_path (expected: three inlinable SQL helpers)
+     proname     
+-----------------
+ can_see_private
+ ctx_user
+ ctx_workspace
+(3 rows)
+
+== 7. Row-level security policies
+     tablename     |     policyname     |  cmd   |       roles       |                                                                                                                                                  qual                                                                                                                                                   
+-------------------+--------------------+--------+-------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ account_balances  | balances_select    | SELECT | {ledgerx_runtime} | ((workspace_id = ( SELECT lx.ctx_workspace() AS ctx_workspace)) AND ( SELECT lx.ctx_has_access() AS ctx_has_access) AND ((private_owner_id IS NULL) OR (private_owner_id = ( SELECT lx.ctx_user() AS ctx_user))))
+ accounts          | accounts_select    | SELECT | {ledgerx_runtime} | ((workspace_id = ( SELECT lx.ctx_workspace() AS ctx_workspace)) AND ( SELECT lx.ctx_has_access() AS ctx_has_access) AND ((owner_user_id IS NULL) OR (owner_user_id = ( SELECT lx.ctx_user() AS ctx_user))))
+ audit_events      | audit_select       | SELECT | {ledgerx_runtime} | ((workspace_id = ( SELECT lx.ctx_workspace() AS ctx_workspace)) AND ( SELECT lx.ctx_has_access() AS ctx_has_access) AND (( SELECT lx.ctx_role() AS ctx_role) = ANY (ARRAY['owner'::text, 'admin'::text])) AND ((private_owner_id IS NULL) OR (private_owner_id = ( SELECT lx.ctx_user() AS ctx_user))))
+ invitations       | invitations_select | SELECT | {ledgerx_runtime} | ((workspace_id = ( SELECT lx.ctx_workspace() AS ctx_workspace)) AND ( SELECT lx.ctx_has_access() AS ctx_has_access) AND (( SELECT lx.ctx_role() AS ctx_role) = ANY (ARRAY['owner'::text, 'admin'::text])))
+ journal_entries   | entries_select     | SELECT | {ledgerx_runtime} | ((workspace_id = ( SELECT lx.ctx_workspace() AS ctx_workspace)) AND ( SELECT lx.ctx_has_access() AS ctx_has_access) AND ((private_owner_id IS NULL) OR (private_owner_id = ( SELECT lx.ctx_user() AS ctx_user))))
+ journal_lines     | lines_select       | SELECT | {ledgerx_runtime} | ((workspace_id = ( SELECT lx.ctx_workspace() AS ctx_workspace)) AND ( SELECT lx.ctx_has_access() AS ctx_has_access) AND ((private_owner_id IS NULL) OR (private_owner_id = ( SELECT lx.ctx_user() AS ctx_user))))
+ users             | users_select       | SELECT | {ledgerx_runtime} | ((id = ( SELECT lx.ctx_user() AS ctx_user)) OR (id = ANY (( SELECT lx.ctx_coworker_ids() AS ctx_coworker_ids)::uuid[])))
+ workspace_members | members_select     | SELECT | {ledgerx_runtime} | ((user_id = ( SELECT lx.ctx_user() AS ctx_user)) OR ((workspace_id = ( SELECT lx.ctx_workspace() AS ctx_workspace)) AND ( SELECT lx.ctx_has_access() AS ctx_has_access)))
+ workspaces        | workspaces_select  | SELECT | {ledgerx_runtime} | (id = ANY (( SELECT lx.my_workspace_ids() AS my_workspace_ids)::uuid[]))
+(9 rows)
+
+-- lx tables WITHOUT row-level security (expected: reference + migration tables only)
+      relname      
+-------------------
+ currencies
+ schema_migrations
+(2 rows)
+
+== 8. Temporary-object protection
+ runtime_can_create_temp | runtime_can_create_schema | runtime_can_create_in_lx | runtime_can_create_in_public 
+-------------------------+---------------------------+--------------------------+------------------------------
+ f                       | f                         | f                        | f
+(1 row)
+

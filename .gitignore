@@ -1,0 +1,6 @@
+.env
+.cache/
+*.log
+*.zip
+.DS_Store
+benchmarks/.cmp.tsv

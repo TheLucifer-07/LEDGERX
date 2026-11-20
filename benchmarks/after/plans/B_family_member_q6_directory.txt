@@ -1,0 +1,37 @@
+Aggregate  (cost=4.90..4.91 rows=1 width=24) (actual time=0.961..0.962 rows=1 loops=1)
+  Buffers: shared hit=10
+  InitPlan 3
+    ->  Aggregate  (cost=1.75..1.76 rows=1 width=8) (actual time=0.394..0.394 rows=1 loops=1)
+          Buffers: shared hit=4
+          InitPlan 1
+            ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.005..0.005 rows=1 loops=1)
+          InitPlan 2
+            ->  Result  (cost=0.00..0.26 rows=1 width=32) (actual time=0.383..0.383 rows=1 loops=1)
+                  Buffers: shared hit=3
+          ->  Seq Scan on users  (cost=0.00..1.45 rows=8 width=0) (actual time=0.391..0.393 rows=3 loops=1)
+                Filter: ((id = (InitPlan 1).col1) OR (id = ANY ((InitPlan 2).col1)))
+                Rows Removed by Filter: 15
+                Buffers: shared hit=4
+  InitPlan 7
+    ->  Aggregate  (cost=1.58..1.59 rows=1 width=8) (actual time=0.224..0.225 rows=1 loops=1)
+          Buffers: shared hit=3
+          InitPlan 4
+            ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.005..0.006 rows=1 loops=1)
+          InitPlan 5
+            ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.005..0.005 rows=1 loops=1)
+          InitPlan 6
+            ->  Result  (cost=0.00..0.26 rows=1 width=1) (actual time=0.209..0.209 rows=1 loops=1)
+                  Buffers: shared hit=2
+          ->  Seq Scan on workspace_members  (cost=0.00..1.27 rows=2 width=0) (actual time=0.222..0.223 rows=3 loops=1)
+                Filter: ((user_id = (InitPlan 4).col1) OR ((workspace_id = (InitPlan 5).col1) AND (InitPlan 6).col1))
+                Rows Removed by Filter: 15
+                Buffers: shared hit=3
+  InitPlan 8
+    ->  Result  (cost=0.00..0.26 rows=1 width=32) (actual time=0.336..0.336 rows=1 loops=1)
+          Buffers: shared hit=2
+  ->  Seq Scan on workspaces  (cost=0.00..1.27 rows=7 width=0) (actual time=0.340..0.341 rows=1 loops=1)
+        Filter: (id = ANY ((InitPlan 8).col1))
+        Rows Removed by Filter: 11
+        Buffers: shared hit=3
+Planning Time: 0.107 ms
+Execution Time: 0.986 ms

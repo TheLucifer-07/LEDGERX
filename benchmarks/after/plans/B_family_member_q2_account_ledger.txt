@@ -1,0 +1,50 @@
+Limit  (cost=1251.16..1251.17 rows=3 width=28) (actual time=10.305..10.321 rows=100 loops=1)
+  Buffers: shared hit=18198
+  InitPlan 4
+    ->  Seq Scan on accounts  (cost=0.31..4.77 rows=1 width=16) (actual time=0.309..0.320 rows=1 loops=1)
+          Filter: ((InitPlan 2).col1 AND (owner_user_id IS NULL) AND ((owner_user_id IS NULL) OR (owner_user_id = (InitPlan 3).col1)) AND (workspace_id = (InitPlan 1).col1) AND (code = '1000'::text))
+          Rows Removed by Filter: 140
+          Buffers: shared hit=4
+          InitPlan 1
+            ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.005..0.006 rows=1 loops=1)
+          InitPlan 2
+            ->  Result  (cost=0.00..0.26 rows=1 width=1) (actual time=0.295..0.296 rows=1 loops=1)
+                  Buffers: shared hit=2
+          InitPlan 3
+            ->  Result  (cost=0.00..0.02 rows=1 width=16) (never executed)
+  InitPlan 5
+    ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.010..0.010 rows=1 loops=1)
+  InitPlan 6
+    ->  Result  (cost=0.00..0.26 rows=1 width=1) (actual time=0.257..0.258 rows=1 loops=1)
+          Buffers: shared hit=2
+  InitPlan 7
+    ->  Result  (cost=0.00..0.02 rows=1 width=16) (never executed)
+  InitPlan 8
+    ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.005..0.005 rows=1 loops=1)
+  InitPlan 9
+    ->  Result  (cost=0.00..0.26 rows=1 width=1) (actual time=0.212..0.212 rows=1 loops=1)
+          Buffers: shared hit=2
+  InitPlan 10
+    ->  Result  (cost=0.00..0.02 rows=1 width=16) (never executed)
+  ->  Sort  (cost=1245.78..1245.79 rows=3 width=28) (actual time=10.304..10.310 rows=100 loops=1)
+        Sort Key: e.entry_date DESC, e.seq DESC
+        Sort Method: top-N heapsort  Memory: 36kB
+        Buffers: shared hit=18198
+        ->  Nested Loop  (cost=10.57..1245.76 rows=3 width=28) (actual time=1.121..9.568 rows=4457 loops=1)
+              Buffers: shared hit=18198
+              ->  Bitmap Heap Scan on journal_lines l  (cost=10.15..577.68 rows=82 width=24) (actual time=0.896..1.957 rows=4457 loops=1)
+                    Recheck Cond: ((workspace_id = (InitPlan 5).col1) AND (account_id = (InitPlan 4).col1))
+                    Filter: ((InitPlan 6).col1 AND ((private_owner_id IS NULL) OR (private_owner_id = (InitPlan 7).col1)))
+                    Heap Blocks: exact=314
+                    Buffers: shared hit=368
+                    ->  Bitmap Index Scan on journal_lines_account_idx  (cost=0.00..10.13 rows=171 width=0) (actual time=0.607..0.607 rows=4457 loops=1)
+                          Index Cond: ((workspace_id = (InitPlan 5).col1) AND (account_id = (InitPlan 4).col1))
+                          Buffers: shared hit=52
+              ->  Index Scan using journal_entries_pkey on journal_entries e  (cost=0.42..8.15 rows=1 width=36) (actual time=0.002..0.002 rows=1 loops=4457)
+                    Index Cond: (id = l.entry_id)
+                    Filter: ((InitPlan 9).col1 AND ((private_owner_id IS NULL) OR (private_owner_id = (InitPlan 10).col1)) AND (workspace_id = (InitPlan 8).col1))
+                    Buffers: shared hit=17830
+Planning:
+  Buffers: shared hit=17
+Planning Time: 0.304 ms
+Execution Time: 10.366 ms

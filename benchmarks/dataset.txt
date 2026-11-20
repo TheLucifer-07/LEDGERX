@@ -1,0 +1,12 @@
+dataset: workspaces=12 entries_per_workspace=10000 seed=ledgerx  (generated+verified+analyzed in 7s)
+rows workspaces 12
+rows users 18
+rows account_balances 117
+rows accounts 141
+rows journal_entries 120000
+rows journal_lines 240000
+fingerprint md5(all lines, ordered by id) f901bd13b2cd0e6cf7c6f4135b25508d
+size account_balances 64 kB
+size accounts 136 kB
+size journal_entries 38 MB
+size journal_lines 78 MB

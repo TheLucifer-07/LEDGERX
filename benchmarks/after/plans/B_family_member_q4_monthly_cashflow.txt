@@ -1,0 +1,61 @@
+Sort  (cost=2628.49..2628.82 rows=132 width=104) (actual time=33.773..33.780 rows=24 loops=1)
+  Sort Key: v_monthly_cashflow.month, v_monthly_cashflow.currency
+  Sort Method: quicksort  Memory: 26kB
+  Buffers: shared hit=41460
+  ->  Subquery Scan on v_monthly_cashflow  (cost=2615.60..2623.85 rows=132 width=104) (actual time=30.438..33.769 rows=24 loops=1)
+        Buffers: shared hit=41460
+        ->  GroupAggregate  (cost=2615.60..2622.53 rows=132 width=128) (actual time=30.436..33.763 rows=24 loops=1)
+              Group Key: (date_trunc('month'::text, (e.entry_date)::timestamp with time zone)), l.currency
+              Buffers: shared hit=41460
+              InitPlan 1
+                ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.006..0.006 rows=1 loops=1)
+              InitPlan 2
+                ->  Result  (cost=0.00..0.26 rows=1 width=1) (actual time=0.269..0.270 rows=1 loops=1)
+                      Buffers: shared hit=2
+              InitPlan 3
+                ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.008..0.008 rows=1 loops=1)
+              InitPlan 4
+                ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.005..0.005 rows=1 loops=1)
+              InitPlan 5
+                ->  Result  (cost=0.00..0.26 rows=1 width=1) (actual time=0.221..0.221 rows=1 loops=1)
+                      Buffers: shared hit=2
+              InitPlan 6
+                ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.006..0.007 rows=1 loops=1)
+              InitPlan 7
+                ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.011..0.011 rows=1 loops=1)
+              InitPlan 8
+                ->  Result  (cost=0.00..0.26 rows=1 width=1) (actual time=0.412..0.413 rows=1 loops=1)
+                      Buffers: shared hit=2
+              InitPlan 9
+                ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.014..0.014 rows=1 loops=1)
+              ->  Sort  (cost=2614.68..2615.01 rows=132 width=47) (actual time=30.281..30.865 rows=9655 loops=1)
+                    Sort Key: (date_trunc('month'::text, (e.entry_date)::timestamp with time zone)), l.currency
+                    Sort Method: quicksort  Memory: 1063kB
+                    Buffers: shared hit=41460
+                    ->  Result  (cost=10.57..2610.03 rows=132 width=47) (actual time=1.077..27.587 rows=9655 loops=1)
+                          One-Time Filter: (((InitPlan 7).col1 = (InitPlan 1).col1) AND ((InitPlan 4).col1 = (InitPlan 1).col1))
+                          Buffers: shared hit=41460
+                          ->  Nested Loop  (cost=10.57..2609.37 rows=132 width=39) (actual time=1.050..24.540 rows=9655 loops=1)
+                                Buffers: shared hit=41460
+                                ->  Nested Loop  (cost=10.15..2183.97 rows=273 width=51) (actual time=0.820..6.786 rows=9655 loops=1)
+                                      Buffers: shared hit=2838
+                                      ->  Seq Scan on accounts a  (cost=0.00..4.47 rows=4 width=39) (actual time=0.424..0.475 rows=10 loops=1)
+                                            Filter: ((InitPlan 8).col1 AND ((owner_user_id IS NULL) OR (owner_user_id = (InitPlan 9).col1)) AND (class = ANY ('{income,expense}'::text[])) AND (workspace_id = (InitPlan 1).col1))
+                                            Rows Removed by Filter: 131
+                                            Buffers: shared hit=4
+                                      ->  Bitmap Heap Scan on journal_lines l  (cost=10.15..544.06 rows=82 width=60) (actual time=0.160..0.529 rows=966 loops=10)
+                                            Recheck Cond: ((workspace_id = (InitPlan 1).col1) AND (account_id = a.id))
+                                            Filter: ((InitPlan 2).col1 AND ((private_owner_id IS NULL) OR (private_owner_id = (InitPlan 3).col1)))
+                                            Heap Blocks: exact=2706
+                                            Buffers: shared hit=2834
+                                            ->  Bitmap Index Scan on journal_lines_account_idx  (cost=0.00..10.13 rows=171 width=0) (actual time=0.106..0.106 rows=966 loops=10)
+                                                  Index Cond: ((workspace_id = (InitPlan 1).col1) AND (account_id = a.id))
+                                                  Buffers: shared hit=126
+                                ->  Index Scan using journal_entries_pkey on journal_entries e  (cost=0.42..1.55 rows=1 width=36) (actual time=0.002..0.002 rows=1 loops=9655)
+                                      Index Cond: (id = l.entry_id)
+                                      Filter: ((InitPlan 5).col1 AND ((private_owner_id IS NULL) OR (private_owner_id = (InitPlan 6).col1)) AND (workspace_id = (InitPlan 1).col1))
+                                      Buffers: shared hit=38622
+Planning:
+  Buffers: shared hit=21
+Planning Time: 0.523 ms
+Execution Time: 33.895 ms

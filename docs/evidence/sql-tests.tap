@@ -1,0 +1,219 @@
+# LedgerX SQL tests (pgTAP 1.3.4) — PostgreSQL 17.5 on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0, 64-bit
+# database=ledgerx_test  run=2026-11-20T07:08:39Z
+# --- 10_ledger_posting.sql
+1..32
+ok 1 - balanced entry posts
+ok 2 - asset balance reflects the posting exactly
+ok 3 - income balance reflects the posting exactly
+ok 4 - unbalanced entry is rejected with a clear message
+ok 5 - unbalanced entry fails with LX422
+ok 6 - ten postings of 0.10 sum to exactly 1.00
+ok 7 - invalid amount '0' is rejected
+ok 8 - invalid amount '-5' is rejected
+ok 9 - invalid amount 'NaN' is rejected
+ok 10 - invalid amount 'Infinity' is rejected
+ok 11 - invalid amount '1e3' is rejected
+ok 12 - invalid amount '1,000' is rejected
+ok 13 - invalid amount '' is rejected
+ok 14 - a line cannot carry both debit and credit
+ok 15 - a single-line entry is rejected
+ok 16 - malformed account id is rejected
+ok 17 - a multi-currency entry that balances in EACH currency posts
+ok 18 - equal numbers in different currencies do NOT balance
+ok 19 - reporting keeps INR separate (1000.10 + 10 x 0.10 + 100)
+ok 20 - reporting keeps USD separate (never summed with INR)
+ok 21 - declared currency must equal the account currency
+ok 22 - INR (2 minor units) rejects 3 decimals
+ok 23 - JPY (0 minor units) rejects decimals
+ok 24 - JPY accepts whole units
+ok 25 - composite FK rejects a line whose currency differs from its account
+ok 26 - same key + same payload returns the original entry
+ok 27 - the replay is flagged as replayed
+ok 28 - exactly one idempotency record exists
+ok 29 - equivalent decimal spellings are the same request
+ok 30 - same key with a different payload is a conflict
+ok 31 - a failed post is rejected...
+ok 32 - ...and does not consume its idempotency key
+# --- 11_immutability.sql
+1..14
+ok 1 - owner cannot UPDATE journal_entries
+ok 2 - owner cannot DELETE journal_entries
+ok 3 - owner cannot UPDATE journal_lines
+ok 4 - owner cannot DELETE journal_lines
+ok 5 - audit events are append-only
+ok 6 - runtime cannot INSERT entries directly
+ok 7 - runtime cannot UPDATE lines
+ok 8 - runtime cannot DELETE lines
+ok 9 - runtime cannot write the balance projection
+ok 10 - account currency is immutable
+ok 11 - account class is immutable
+ok 12 - accounts cannot be deleted
+ok 13 - renaming an account is allowed
+ok 14 - deferred trigger rejects a directly inserted unbalanced entry
+# --- 12_reversals_transfers_projection.sql
+1..26
+ok 1 - before reversal: cash = 1000 - 300
+ok 2 - reversal restores the cash balance
+ok 3 - reversal zeroes the expense
+ok 4 - original and reversal both remain in the ledger
+ok 5 - the reversal points at the original
+ok 6 - reports: expense is compensated
+ok 7 - reports: net reflects the reversal
+ok 8 - reversal is idempotent: replay returns the same entry
+ok 9 - reversal replay is flagged
+ok 10 - an entry can only be reversed once
+ok 11 - a reversal cannot be reversed
+ok 12 - unknown entry is not found
+ok 13 - a reason is required
+ok 14 - a transfer is not income
+ok 15 - a transfer is not spending
+ok 16 - transfer credits the destination account
+ok 17 - transfer debits the source account
+ok 18 - a transfer cannot touch income/expense accounts
+ok 19 - verification: projection matches the ledger
+ok 20 - simulate corruption of the projection
+ok 21 - verification detects exactly the corrupted account
+ok 22 - and identifies it
+ok 23 - rebuild runs
+ok 24 - after rebuild the projection matches the ledger again
+ok 25 - and the balance is correct
+ok 26 - audit trail records creation, postings and reversals
+# --- 20_tenant_isolation.sql
+1..55
+ok 1 - lx.workspaces is empty without tenant context
+ok 2 - lx.workspace_members is empty without tenant context
+ok 3 - lx.accounts is empty without tenant context
+ok 4 - lx.journal_entries is empty without tenant context
+ok 5 - lx.journal_lines is empty without tenant context
+ok 6 - lx.account_balances is empty without tenant context
+ok 7 - lx.audit_events is empty without tenant context
+ok 8 - lx.users is empty without tenant context
+ok 9 - lx.invitations is empty without tenant context
+ok 10 - lx.v_account_balances is empty without tenant context
+ok 11 - lx.v_monthly_cashflow is empty without tenant context
+ok 12 - lx.v_category_spend is empty without tenant context
+ok 13 - create_workspace refuses without context
+ok 14 - posting refuses without context
+ok 15 - set_context refuses a non-member
+ok 16 - set_context refuses an unknown user
+ok 17 - forged setting: no accounts for a non-member
+ok 18 - forged setting: workspace not visible
+ok 19 - forged setting: posting refused
+ok 20 - malformed setting is treated as no context
+ok 21 - bob cannot see alice's entries
+ok 22 - alice sees her entry
+ok 23 - bob's accounts are only from his workspace
+ok 24 - user-level context lists only my workspaces (bob)
+ok 25 - user-level context lists only my workspaces (alice)
+ok 26 - bob cannot see unrelated users
+ok 27 - a foreign account id is invisible
+ok 28 - cannot post against another workspace's accounts
+ok 29 - cannot mix in a foreign account
+ok 30 - composite FK makes cross-workspace references impossible at the schema level
+ok 31 - runtime role: no superuser/BYPASSRLS/CREATEROLE/CREATEDB
+ok 32 - runtime role owns no lx objects
+ok 33 - every lx table except the reference/migration tables has RLS enabled
+ok 34 - runtime cannot read idempotency_keys
+ok 35 - runtime cannot read users.auth_user_id
+ok 36 - runtime cannot read invitations.token_hash
+ok 37 - runtime cannot read schema_migrations
+ok 38 - runtime cannot insert workspaces directly
+ok 39 - runtime cannot grant itself membership
+ok 40 - internal helper _claim_idempotency is not callable
+ok 41 - internal helper _require_ws is not callable
+ok 42 - viewer can read
+ok 43 - viewer cannot post
+ok 44 - member cannot create shared accounts
+ok 45 - member can post
+ok 46 - member can create a private account
+ok 47 - members cannot run integrity verification
+ok 48 - demo workspace: account creation refused
+ok 49 - demo workspace: posting refused
+ok 50 - a suspended member is locked out
+ok 51 - invitation token has 256 bits of entropy (64 hex chars)
+ok 52 - only a hash of the token is stored
+ok 53 - members cannot invite
+ok 54 - personal workspaces cannot invite
+ok 55 - members cannot see invitations
+# --- 21_family_privacy.sql
+1..33
+ok 1 - bob posts a second private entry
+ok 2 - bob sees his 3 private accounts
+ok 3 - bob sees his private entries
+ok 4 - bob sees his private lines
+ok 5 - owner: no private accounts
+ok 6 - admin: no private accounts
+ok 7 - owner: no private entries
+ok 8 - admin: no private entries
+ok 9 - owner: no private lines
+ok 10 - admin: no private lines
+ok 11 - owner: no private balances
+ok 12 - admin: no private balances
+ok 13 - owner: private accounts absent from balance view
+ok 14 - admin: private accounts absent from balance view
+ok 15 - owner: private activity absent from cash-flow report
+ok 16 - admin: private activity absent from cash-flow report
+ok 17 - owner: private spend absent from category report
+ok 18 - admin: private spend absent from category report
+ok 19 - owner: private postings absent from the audit trail
+ok 20 - admin: private postings absent from the audit trail
+ok 21 - a private account cannot be fetched by id
+ok 22 - integrity verification never reveals private accounts
+ok 23 - owner cannot post into a member's private account
+ok 24 - owner cannot reverse a member's private entry
+ok 25 - alice posts a shared entry
+ok 26 - a shared entry is visible to every member
+ok 27 - shared balances are visible
+ok 28 - a private/shared mixed entry is rejected
+ok 29 - private spend never leaks into shared aggregates
+ok 30 - idempotency keys cannot probe private entries
+ok 31 - members see co-members
+ok 32 - a stranger sees only himself
+ok 33 - plain members do not see the audit trail
+# --- 30_security_audit.sql
+1..29
+ok 1 - PUBLIC holds no privilege on the database (no CONNECT, no TEMPORARY)
+ok 2 - PUBLIC cannot create objects in schema public
+ok 3 - PUBLIC has no privilege on schema lx
+ok 4 - PUBLIC can execute no lx function
+ok 5 - PUBLIC holds no privilege on any lx table, view or sequence
+ok 6 - neither application role is superuser or BYPASSRLS
+ok 7 - runtime role cannot create roles/databases or replicate
+ok 8 - every lx object is owned by ledgerx_migrator
+ok 9 - the runtime role owns nothing
+ok 10 - runtime holds no write-type privilege on any lx relation
+ok 11 - runtime holds no column-level INSERT/UPDATE either
+ok 12 - the readable relation set is exactly the intended one (no idempotency_keys, no schema_migrations)
+ok 13 - the executable function set is exactly the public API (+ policy helpers)
+ok 14 - every RLS policy is scoped TO ledgerx_runtime only
+ok 15 - every policy is SELECT-only: there is no policy that permits a write
+ok 16 - every SECURITY DEFINER function pins search_path = pg_catalog, pg_temp (pg_temp last)
+ok 17 - the only unpinned functions are three inlinable SQL helpers that call nothing but pg_catalog built-ins
+ok 18 - no SECURITY DEFINER function runs as a superuser or BYPASSRLS role
+ok 19 - runtime role cannot create temporary objects
+ok 20 - attempt: shadow a table with a temp table is denied
+ok 21 - attempt: create a table in public is denied
+ok 22 - attempt: create/replace a function in lx is denied
+ok 23 - attempt: create a schema is denied
+ok 24 - neither application role is a member of any other role (no SET ROLE path); real-connection check in tests/multisession
+ok 25 - attempt: grant itself BYPASSRLS is denied
+ok 26 - attempt: disable triggers via session_replication_role is denied
+ok 27 - attempt: disable triggers on a ledger table is denied
+ok 28 - attempt: disable RLS is denied
+ok 29 - attempt: repoint a definer function's search_path is denied
+# --- 50_rls_policy_equivalence.sql
+1..13
+ok 1 - a meaningful number of contexts is compared
+ok 2 - negative control: the comparison detects a leaky policy
+ok 3 - identical visibility under old and new policies: lx.account_balances
+ok 4 - identical visibility under old and new policies: lx.accounts
+ok 5 - identical visibility under old and new policies: lx.audit_events
+ok 6 - identical visibility under old and new policies: lx.invitations
+ok 7 - identical visibility under old and new policies: lx.journal_entries
+ok 8 - identical visibility under old and new policies: lx.journal_lines
+ok 9 - identical visibility under old and new policies: lx.users
+ok 10 - identical visibility under old and new policies: lx.workspace_members
+ok 11 - identical visibility under old and new policies: lx.workspaces
+ok 12 - dataset contains private rows (the interesting case)
+ok 13 - fingerprints are non-degenerate
+# SUMMARY files=7 assertions=202 failed=0

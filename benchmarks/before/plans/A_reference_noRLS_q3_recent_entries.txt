@@ -1,0 +1,9 @@
+Limit  (cost=0.42..45.10 rows=50 width=36) (actual time=0.003..0.019 rows=50 loops=1)
+  Buffers: shared hit=53
+  ->  Index Scan using journal_entries_ws_date_idx on journal_entries  (cost=0.42..8661.73 rows=9692 width=36) (actual time=0.002..0.016 rows=50 loops=1)
+        Index Cond: (workspace_id = 'df9d0752-93b4-0ead-d58b-edfd4a62f890'::uuid)
+        Buffers: shared hit=53
+Planning:
+  Buffers: shared hit=1
+Planning Time: 0.018 ms
+Execution Time: 0.024 ms

@@ -1,0 +1,22 @@
+Limit  (cost=4062.43..4062.68 rows=100 width=28) (actual time=9.504..9.516 rows=100 loops=1)
+  Buffers: shared hit=21042
+  ->  Sort  (cost=4062.43..4063.44 rows=404 width=28) (actual time=9.503..9.508 rows=100 loops=1)
+        Sort Key: e.entry_date DESC, e.seq DESC
+        Sort Method: top-N heapsort  Memory: 36kB
+        Buffers: shared hit=21042
+        ->  Nested Loop  (cost=24.98..4046.99 rows=404 width=28) (actual time=0.284..8.825 rows=5170 loops=1)
+              Buffers: shared hit=21042
+              ->  Bitmap Heap Scan on journal_lines l  (cost=24.56..1195.25 rows=404 width=24) (actual time=0.279..1.035 rows=5170 loops=1)
+                    Recheck Cond: ((workspace_id = 'df9d0752-93b4-0ead-d58b-edfd4a62f890'::uuid) AND (account_id = 'fba6ed80-6e6b-2cc5-8d63-75ab87113593'::uuid))
+                    Heap Blocks: exact=307
+                    Buffers: shared hit=362
+                    ->  Bitmap Index Scan on journal_lines_account_idx  (cost=0.00..24.46 rows=404 width=0) (actual time=0.252..0.253 rows=5170 loops=1)
+                          Index Cond: ((workspace_id = 'df9d0752-93b4-0ead-d58b-edfd4a62f890'::uuid) AND (account_id = 'fba6ed80-6e6b-2cc5-8d63-75ab87113593'::uuid))
+                          Buffers: shared hit=55
+              ->  Index Scan using journal_entries_pkey on journal_entries e  (cost=0.42..7.06 rows=1 width=36) (actual time=0.001..0.001 rows=1 loops=5170)
+                    Index Cond: (id = l.entry_id)
+                    Buffers: shared hit=20680
+Planning:
+  Buffers: shared hit=17
+Planning Time: 0.163 ms
+Execution Time: 9.539 ms

@@ -1,0 +1,40 @@
+Sort  (cost=14346.75..14347.92 rows=468 width=104) (actual time=2311.586..2311.591 rows=24 loops=1)
+  Sort Key: v_monthly_cashflow.month, v_monthly_cashflow.currency
+  Sort Method: quicksort  Memory: 26kB
+  Buffers: shared hit=79085
+  ->  Subquery Scan on v_monthly_cashflow  (cost=1200.70..14325.99 rows=468 width=104) (actual time=2308.609..2311.579 rows=24 loops=1)
+        Buffers: shared hit=79085
+        ->  GroupAggregate  (cost=1200.70..14321.31 rows=468 width=128) (actual time=2308.608..2311.574 rows=24 loops=1)
+              Group Key: e.workspace_id, (date_trunc('month'::text, (e.entry_date)::timestamp with time zone)), l.currency
+              Buffers: shared hit=79085
+              ->  Incremental Sort  (cost=1200.70..14296.74 rows=468 width=47) (actual time=2308.457..2308.942 rows=9602 loops=1)
+                    Sort Key: e.workspace_id, (date_trunc('month'::text, (e.entry_date)::timestamp with time zone)), l.currency
+                    Presorted Key: e.workspace_id
+                    Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 29kB  Peak Memory: 29kB
+                    Pre-sorted Groups: 1  Sort Method: quicksort  Average Memory: 1060kB  Peak Memory: 1060kB
+                    Buffers: shared hit=79085
+                    ->  Nested Loop  (cost=10.71..14278.29 rows=468 width=47) (actual time=1.134..2299.501 rows=9602 loops=1)
+                          Buffers: shared hit=79085
+                          ->  Nested Loop  (cost=10.29..13035.91 rows=1457 width=67) (actual time=0.998..1121.718 rows=9602 loops=1)
+                                Buffers: shared hit=21473
+                                ->  Index Scan using accounts_ws_class_idx on accounts a  (cost=0.14..45.21 rows=32 width=39) (actual time=0.710..1.630 rows=8 loops=1)
+                                      Index Cond: (class = ANY ('{income,expense}'::text[]))
+                                      Filter: (((owner_user_id IS NULL) OR (owner_user_id = CASE WHEN (current_setting('lx.user_id'::text, true) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) THEN (current_setting('lx.user_id'::text, true))::uuid ELSE NULL::uuid END)) AND lx.has_ws_access(workspace_id))
+                                      Rows Removed by Filter: 94
+                                      Buffers: shared hit=28
+                                ->  Bitmap Heap Scan on journal_lines l  (cost=10.14..405.41 rows=55 width=60) (actual time=0.255..139.648 rows=1200 loops=8)
+                                      Recheck Cond: ((workspace_id = a.workspace_id) AND (account_id = a.id))
+                                      Filter: (((private_owner_id IS NULL) OR (private_owner_id = CASE WHEN (current_setting('lx.user_id'::text, true) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) THEN (current_setting('lx.user_id'::text, true))::uuid ELSE NULL::uuid END)) AND lx.has_ws_access(workspace_id))
+                                      Heap Blocks: exact=2117
+                                      Buffers: shared hit=21445
+                                      ->  Bitmap Index Scan on journal_lines_account_idx  (cost=0.00..10.13 rows=171 width=0) (actual time=0.115..0.115 rows=1200 loops=8)
+                                            Index Cond: ((workspace_id = a.workspace_id) AND (account_id = a.id))
+                                            Buffers: shared hit=124
+                          ->  Index Scan using journal_entries_pkey on journal_entries e  (cost=0.42..0.84 rows=1 width=36) (actual time=0.121..0.121 rows=1 loops=9602)
+                                Index Cond: (id = l.entry_id)
+                                Filter: ((l.workspace_id = workspace_id) AND ((private_owner_id IS NULL) OR (private_owner_id = CASE WHEN (current_setting('lx.user_id'::text, true) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) THEN (current_setting('lx.user_id'::text, true))::uuid ELSE NULL::uuid END)) AND lx.has_ws_access(workspace_id))
+                                Buffers: shared hit=57612
+Planning:
+  Buffers: shared hit=21
+Planning Time: 0.551 ms
+Execution Time: 2311.715 ms

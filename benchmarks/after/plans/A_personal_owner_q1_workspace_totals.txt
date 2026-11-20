@@ -1,0 +1,19 @@
+Aggregate  (cost=5092.42..5092.43 rows=1 width=72) (actual time=6.478..6.479 rows=1 loops=1)
+  Buffers: shared hit=531
+  InitPlan 1
+    ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.009..0.009 rows=1 loops=1)
+  InitPlan 2
+    ->  Result  (cost=0.00..0.26 rows=1 width=1) (actual time=0.352..0.353 rows=1 loops=1)
+          Buffers: shared hit=2
+  InitPlan 3
+    ->  Result  (cost=0.00..0.02 rows=1 width=16) (never executed)
+  ->  Bitmap Heap Scan on journal_lines  (cost=1024.83..5019.83 rows=9637 width=8) (actual time=1.381..4.362 rows=20000 loops=1)
+        Recheck Cond: (workspace_id = (InitPlan 1).col1)
+        Filter: ((InitPlan 2).col1 AND ((private_owner_id IS NULL) OR (private_owner_id = (InitPlan 3).col1)))
+        Heap Blocks: exact=307
+        Buffers: shared hit=531
+        ->  Bitmap Index Scan on journal_lines_account_idx  (cost=0.00..1022.42 rows=20000 width=0) (actual time=0.992..0.992 rows=20000 loops=1)
+              Index Cond: (workspace_id = (InitPlan 1).col1)
+              Buffers: shared hit=222
+Planning Time: 0.082 ms
+Execution Time: 6.503 ms

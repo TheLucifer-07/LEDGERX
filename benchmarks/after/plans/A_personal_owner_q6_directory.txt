@@ -1,0 +1,36 @@
+Aggregate  (cost=4.90..4.91 rows=1 width=24) (actual time=0.706..0.708 rows=1 loops=1)
+  Buffers: shared hit=8
+  InitPlan 3
+    ->  Aggregate  (cost=1.75..1.76 rows=1 width=8) (actual time=0.360..0.361 rows=1 loops=1)
+          Buffers: shared hit=4
+          InitPlan 1
+            ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.007..0.007 rows=1 loops=1)
+          InitPlan 2
+            ->  Result  (cost=0.00..0.26 rows=1 width=32) (actual time=0.348..0.348 rows=1 loops=1)
+                  Buffers: shared hit=3
+          ->  Seq Scan on users  (cost=0.00..1.45 rows=8 width=0) (actual time=0.358..0.359 rows=1 loops=1)
+                Filter: ((id = (InitPlan 1).col1) OR (id = ANY ((InitPlan 2).col1)))
+                Rows Removed by Filter: 17
+                Buffers: shared hit=4
+  InitPlan 7
+    ->  Aggregate  (cost=1.58..1.59 rows=1 width=8) (actual time=0.013..0.014 rows=1 loops=1)
+          Buffers: shared hit=1
+          InitPlan 4
+            ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.005..0.005 rows=1 loops=1)
+          InitPlan 5
+            ->  Result  (cost=0.00..0.02 rows=1 width=16) (actual time=0.005..0.005 rows=1 loops=1)
+          InitPlan 6
+            ->  Result  (cost=0.00..0.26 rows=1 width=1) (never executed)
+          ->  Seq Scan on workspace_members  (cost=0.00..1.27 rows=2 width=0) (actual time=0.011..0.013 rows=1 loops=1)
+                Filter: ((user_id = (InitPlan 4).col1) OR ((workspace_id = (InitPlan 5).col1) AND (InitPlan 6).col1))
+                Rows Removed by Filter: 17
+                Buffers: shared hit=1
+  InitPlan 8
+    ->  Result  (cost=0.00..0.26 rows=1 width=32) (actual time=0.326..0.326 rows=1 loops=1)
+          Buffers: shared hit=2
+  ->  Seq Scan on workspaces  (cost=0.00..1.27 rows=7 width=0) (actual time=0.330..0.331 rows=1 loops=1)
+        Filter: (id = ANY ((InitPlan 8).col1))
+        Rows Removed by Filter: 11
+        Buffers: shared hit=3
+Planning Time: 0.108 ms
+Execution Time: 0.730 ms

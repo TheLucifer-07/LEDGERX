@@ -1,0 +1,1 @@
+SELECT e.entry_date, e.description, l.debit, l.credit FROM lx.journal_lines l JOIN lx.journal_entries e ON e.id = l.entry_id WHERE l.workspace_id = '__WS__' AND l.account_id = '__CASH__' ORDER BY e.entry_date DESC, e.seq DESC LIMIT 100

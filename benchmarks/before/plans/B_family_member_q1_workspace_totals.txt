@@ -1,0 +1,8 @@
+Aggregate  (cost=70273.24..70273.25 rows=1 width=72) (actual time=4769.016..4769.017 rows=1 loops=1)
+  Buffers: shared hit=43695
+  ->  Seq Scan on journal_lines  (cost=0.00..69695.00 rows=77098 width=8) (actual time=429.242..4763.010 rows=20000 loops=1)
+        Filter: (((private_owner_id IS NULL) OR (private_owner_id = CASE WHEN (current_setting('lx.user_id'::text, true) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) THEN (current_setting('lx.user_id'::text, true))::uuid ELSE NULL::uuid END)) AND lx.has_ws_access(workspace_id))
+        Rows Removed by Filter: 220000
+        Buffers: shared hit=43695
+Planning Time: 0.107 ms
+Execution Time: 4769.039 ms

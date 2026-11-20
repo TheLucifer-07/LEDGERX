@@ -1,0 +1,14 @@
+Limit  (cost=36370.23..36370.36 rows=50 width=36) (actual time=2348.113..2348.120 rows=50 loops=1)
+  Buffers: shared hit=22088
+  ->  Sort  (cost=36370.23..36466.73 rows=38599 width=36) (actual time=2348.110..2348.114 rows=50 loops=1)
+        Sort Key: entry_date DESC, seq DESC
+        Sort Method: top-N heapsort  Memory: 30kB
+        Buffers: shared hit=22088
+        ->  Seq Scan on journal_entries  (cost=0.00..35088.00 rows=38599 width=36) (actual time=207.291..2345.034 rows=10000 loops=1)
+              Filter: (((private_owner_id IS NULL) OR (private_owner_id = CASE WHEN (current_setting('lx.user_id'::text, true) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) THEN (current_setting('lx.user_id'::text, true))::uuid ELSE NULL::uuid END)) AND lx.has_ws_access(workspace_id))
+              Rows Removed by Filter: 110000
+              Buffers: shared hit=22088
+Planning:
+  Buffers: shared hit=1
+Planning Time: 0.151 ms
+Execution Time: 2348.135 ms

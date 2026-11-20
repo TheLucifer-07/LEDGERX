@@ -1,0 +1,1 @@
+SELECT e.entry_date, e.description, l.debit, l.credit FROM lx.journal_lines l JOIN lx.journal_entries e ON e.id = l.entry_id WHERE l.account_id = (SELECT id FROM lx.accounts WHERE code = '1000' AND owner_user_id IS NULL) ORDER BY e.entry_date DESC, e.seq DESC LIMIT 100

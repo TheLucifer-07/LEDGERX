@@ -1,0 +1,11 @@
+Aggregate  (cost=5096.21..5096.22 rows=1 width=72) (actual time=5.550..5.551 rows=1 loops=1)
+  Buffers: shared hit=529
+  ->  Bitmap Heap Scan on journal_lines  (cost=1008.57..4948.97 rows=19632 width=8) (actual time=0.952..2.737 rows=20000 loops=1)
+        Recheck Cond: (workspace_id = 'df9d0752-93b4-0ead-d58b-edfd4a62f890'::uuid)
+        Heap Blocks: exact=307
+        Buffers: shared hit=529
+        ->  Bitmap Index Scan on journal_lines_account_idx  (cost=0.00..1003.66 rows=19632 width=0) (actual time=0.894..0.894 rows=20000 loops=1)
+              Index Cond: (workspace_id = 'df9d0752-93b4-0ead-d58b-edfd4a62f890'::uuid)
+              Buffers: shared hit=222
+Planning Time: 0.095 ms
+Execution Time: 5.569 ms

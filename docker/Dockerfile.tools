@@ -1,0 +1,4 @@
+# Tooling image: PostgreSQL 17 client tools (psql, pgbench) + bash + make. No application runtime.
+FROM postgres:17
+RUN apt-get update && apt-get install -y --no-install-recommends make && rm -rf /var/lib/apt/lists/*
+WORKDIR /work

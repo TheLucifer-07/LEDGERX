@@ -1,0 +1,48 @@
+# LedgerX multi-session tests — PostgreSQL 17.5 on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0, 64-bit
+# database=ledgerx_test  run=2026-11-20T07:06:15Z
+# --- 1. idempotency under a real race (12 concurrent sessions, one key)
+ok 1 - exactly one session created the entry
+ok 2 - eleven sessions received the replay
+ok 3 - all sessions returned the same entry id
+ok 4 - one idempotency record, one ledger entry
+ok 5 - the amount was applied exactly once
+ok 6 - no session saw an error
+# --- 2. concurrent reversal of one entry (8 sessions, 8 different keys)
+ok 7 - exactly one reversal succeeded
+ok 8 - the other seven were refused with LX409
+ok 9 - no other error (e.g. deadlock) occurred
+ok 10 - ledger holds the original and a single reversal
+ok 11 - balance is back to zero
+# --- 3. 40 concurrent postings touching the same two accounts in opposite order
+ok 12 - all 40 postings committed
+ok 13 - no deadlock or serialization failure
+ok 14 - cash nets to zero (20 debits, 20 credits)
+ok 15 - cash debit total is exactly 200 (no lost update)
+ok 16 - projection matches the ledger
+# --- 4. projection rebuild racing against live postings (30 posters + 5 rebuilds)
+ok 17 - all 30 postings committed
+ok 18 - all 5 rebuilds completed
+ok 19 - no errors
+ok 20 - projection equals the ledger after the race
+ok 21 - cash balance is exactly 300
+# --- 5. committed-transaction behaviour (the owner role, real COMMITs)
+ok 22 - COMMIT of an unbalanced direct insert is refused (LX422)
+ok 23 - ...and nothing was persisted
+ok 24 - COMMIT of a single-line entry is refused (LX422)
+ok 25 - positive control: a balanced direct insert commits
+ok 26 - ...and the balance projection followed
+ok 27 - lines cannot be added to an entry committed earlier (LX423)
+ok 28 - TRUNCATE of journal_lines is blocked (LX423)
+ok 29 - UPDATE of a committed entry is blocked (LX423)
+# --- 6. session hygiene and privilege escalation over a real runtime connection
+ok 30 - context is active inside its transaction
+ok 31 - after COMMIT the same connection sees no rows (B)
+ok 32 - after COMMIT the user setting is cleared (C)
+ok 33 - after a failed + rolled-back transaction nothing leaks (D, E)
+ok 34 - real login: SET ROLE / replica mode / temp / public DDL are all refused (42501)
+ok 35 - real login: connected as ledgerx_runtime without BYPASSRLS
+# --- 7. migrations: repeatable, concurrent-safe, checksum-protected
+ok 36 - a repeat run applies nothing
+ok 37 - three concurrent runs all apply nothing
+ok 38 - an edited, already-applied migration is rejected
+# SUMMARY assertions=38 failed=0

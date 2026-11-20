@@ -1,0 +1,34 @@
+Limit  (cost=20521.29..20521.54 rows=100 width=28) (actual time=1775.303..1775.323 rows=100 loops=1)
+  Buffers: shared hit=44258
+  InitPlan 1
+    ->  Bitmap Heap Scan on accounts  (cost=9.20..14.53 rows=4 width=16) (actual time=0.241..0.315 rows=1 loops=1)
+          Recheck Cond: (code = '1000'::text)
+          Filter: ((owner_user_id IS NULL) AND ((owner_user_id IS NULL) OR (owner_user_id = CASE WHEN (current_setting('lx.user_id'::text, true) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) THEN (current_setting('lx.user_id'::text, true))::uuid ELSE NULL::uuid END)) AND lx.has_ws_access(workspace_id))
+          Rows Removed by Filter: 11
+          Heap Blocks: exact=2
+          Buffers: shared hit=5
+          ->  Bitmap Index Scan on accounts_code_uq  (cost=0.00..9.20 rows=12 width=0) (actual time=0.010..0.011 rows=12 loops=1)
+                Index Cond: (code = '1000'::text)
+                Buffers: shared hit=1
+  ->  Sort  (cost=20506.76..20507.29 rows=212 width=28) (actual time=1775.300..1775.308 rows=100 loops=1)
+        Sort Key: e.entry_date DESC, e.seq DESC
+        Sort Method: top-N heapsort  Memory: 36kB
+        Buffers: shared hit=44258
+        ->  Nested Loop  (cost=12257.00..20498.66 rows=212 width=28) (actual time=9.535..1770.521 rows=5170 loops=1)
+              Buffers: shared hit=44258
+              ->  Bitmap Heap Scan on journal_lines l  (cost=12256.58..16073.36 rows=659 width=24) (actual time=9.371..860.983 rows=5170 loops=1)
+                    Recheck Cond: (account_id = (InitPlan 1).col1)
+                    Filter: (((private_owner_id IS NULL) OR (private_owner_id = CASE WHEN (current_setting('lx.user_id'::text, true) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) THEN (current_setting('lx.user_id'::text, true))::uuid ELSE NULL::uuid END)) AND lx.has_ws_access(workspace_id))
+                    Heap Blocks: exact=307
+                    Buffers: shared hit=13238
+                    ->  Bitmap Index Scan on journal_lines_account_idx  (cost=0.00..12256.42 rows=2051 width=0) (actual time=9.028..9.028 rows=5170 loops=1)
+                          Index Cond: (account_id = (InitPlan 1).col1)
+                          Buffers: shared hit=2591
+              ->  Index Scan using journal_entries_pkey on journal_entries e  (cost=0.42..6.72 rows=1 width=36) (actual time=0.175..0.175 rows=1 loops=5170)
+                    Index Cond: (id = l.entry_id)
+                    Filter: (((private_owner_id IS NULL) OR (private_owner_id = CASE WHEN (current_setting('lx.user_id'::text, true) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) THEN (current_setting('lx.user_id'::text, true))::uuid ELSE NULL::uuid END)) AND lx.has_ws_access(workspace_id))
+                    Buffers: shared hit=31020
+Planning:
+  Buffers: shared hit=17
+Planning Time: 0.384 ms
+Execution Time: 1775.371 ms

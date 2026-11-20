@@ -1,0 +1,18 @@
+Sort  (cost=77.15..77.26 rows=44 width=52) (actual time=3.507..3.508 rows=11 loops=1)
+  Sort Key: a.code
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=62
+  ->  Nested Loop Left Join  (cost=0.14..75.95 rows=44 width=52) (actual time=0.536..3.499 rows=11 loops=1)
+        Buffers: shared hit=62
+        ->  Seq Scan on accounts a  (cost=0.00..40.78 rows=44 width=52) (actual time=0.313..2.327 rows=11 loops=1)
+              Filter: (((owner_user_id IS NULL) OR (owner_user_id = CASE WHEN (current_setting('lx.user_id'::text, true) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) THEN (current_setting('lx.user_id'::text, true))::uuid ELSE NULL::uuid END)) AND lx.has_ws_access(workspace_id))
+              Rows Removed by Filter: 130
+              Buffers: shared hit=24
+        ->  Index Scan using account_balances_pkey on account_balances b  (cost=0.14..0.79 rows=1 width=45) (actual time=0.105..0.105 rows=1 loops=11)
+              Index Cond: ((workspace_id = a.workspace_id) AND (account_id = a.id))
+              Filter: (((private_owner_id IS NULL) OR (private_owner_id = CASE WHEN (current_setting('lx.user_id'::text, true) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) THEN (current_setting('lx.user_id'::text, true))::uuid ELSE NULL::uuid END)) AND lx.has_ws_access(workspace_id))
+              Buffers: shared hit=38
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.238 ms
+Execution Time: 3.527 ms
